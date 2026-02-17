@@ -29,13 +29,21 @@ export const newsApi = {
 
 // 감성 분석 API
 export const sentimentApi = {
-  // 감성 시계열 데이터 조회
+  // 감성 시계열 데이터 조회 (시간 단위)
   getTimeSeries: async (
     ticker: string,
     hours: number = 24
   ): Promise<SentimentTimeSeries> => {
-    const response = await api.get(`/sentiment/timeseries/${ticker}`, {
-      params: { hours },
+    // 24시간이면 전용 엔드포인트 사용
+    if (hours === 24) {
+      const response = await api.get(`/sentiment/timeseries/${ticker}/last24hours`)
+      return response.data
+    }
+
+    // 그 외에는 days로 변환해서 recent 엔드포인트 사용
+    const days = Math.ceil(hours / 24)
+    const response = await api.get(`/sentiment/timeseries/${ticker}/recent`, {
+      params: { days, interval: 'HOURLY' },
     })
     return response.data
   },

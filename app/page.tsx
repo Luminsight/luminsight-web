@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { newsApi } from '@/lib/api'
 import type { News } from '@/types'
+import SentimentChart from '@/components/SentimentChart'
+import SentimentDonutChart from '@/components/SentimentDonutChart'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 
@@ -13,6 +15,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<SentimentFilter>('ALL')
+  const [timeRange, setTimeRange] = useState(24) // 차트 시간 범위 (시간 단위)
 
   // 뉴스 가져오기
   const fetchNews = async (tickerSymbol: string) => {
@@ -63,29 +66,25 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* 헤더 */}
-      <header className="bg-white border-b">
+      <header className="glass border-b border-border-light backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">
-              📊 LuminSight
-            </h1>
-
+          <div className="flex items-center justify-between gap-4">
             {/* 티커 검색 */}
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="flex gap-2 flex-1 max-w-md">
               <input
                 type="text"
                 value={ticker}
                 onChange={(e) => setTicker(e.target.value.toUpperCase())}
                 placeholder="티커 입력 (예: AAPL)"
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                className="px-4 py-2 glass border border-border rounded-lg focus:outline-none focus:border-accent-blue focus:ring-2 focus:ring-accent-blue/20 uppercase text-text-primary placeholder:text-text-muted transition-all"
                 maxLength={10}
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                className="px-6 py-2 bg-gradient-to-br from-accent-blue to-blue-700 text-white rounded-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold"
               >
                 {loading ? '로딩...' : '검색'}
               </button>
@@ -97,29 +96,85 @@ export default function DashboardPage() {
       {/* 메인 컨텐츠 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-            {error}
+          <div className="mb-6 p-4 glass border-2 border-negative/50 text-negative rounded-lg neon-border-red fade-in">
+            ❌ {error}
           </div>
         )}
 
-        {/* 감성 통계 */}
+        {/* 통계 요약 카드 */}
         {!loading && news.length > 0 && (
-          <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-600">전체</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+          <div className="mb-6 fade-in">
+            <div className="card card-glow hover-lift text-center">
+              <p className="text-sm text-text-secondary mb-2">📊 총 뉴스 개수</p>
+              <p className="text-5xl font-bold gradient-text mb-2">{stats.total}</p>
+              <p className="text-sm text-text-muted">
+                감성 분석 완료된 뉴스 • 상세 비율은 차트에서 확인
+              </p>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg shadow">
-              <p className="text-sm text-green-600">긍정</p>
-              <p className="text-2xl font-bold text-green-700">{stats.positive}</p>
+          </div>
+        )}
+
+        {/* 감성 시계열 차트 */}
+        {!loading && news.length > 0 && (
+          <div className="mb-6">
+            {/* 시간 범위 선택 버튼 */}
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-text-secondary font-medium">
+                📅 시간 범위:
+              </span>
+              <button
+                onClick={() => setTimeRange(24)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  timeRange === 24
+                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
+                }`}
+              >
+                24시간
+              </button>
+              <button
+                onClick={() => setTimeRange(72)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  timeRange === 72
+                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
+                }`}
+              >
+                3일
+              </button>
+              <button
+                onClick={() => setTimeRange(168)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  timeRange === 168
+                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
+                }`}
+              >
+                7일
+              </button>
+              <button
+                onClick={() => setTimeRange(720)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  timeRange === 720
+                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
+                }`}
+              >
+                30일
+              </button>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg shadow">
-              <p className="text-sm text-red-600">부정</p>
-              <p className="text-2xl font-bold text-red-700">{stats.negative}</p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg shadow">
-              <p className="text-sm text-gray-600">중립</p>
-              <p className="text-2xl font-bold text-gray-700">{stats.neutral}</p>
+
+            {/* 차트 그리드 */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* 라인 차트 */}
+              <SentimentChart ticker={ticker} hours={timeRange} />
+
+              {/* 도넛 차트 */}
+              <SentimentDonutChart
+                positive={stats.positive}
+                negative={stats.negative}
+                neutral={stats.neutral}
+              />
             </div>
           </div>
         )}
@@ -129,43 +184,43 @@ export default function DashboardPage() {
           <div className="mb-6 flex flex-wrap gap-2">
             <button
               onClick={() => setFilter('ALL')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                 filter === 'ALL'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                  : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
               }`}
             >
-              전체 ({stats.total})
+              📊 전체 ({stats.total})
             </button>
             <button
               onClick={() => setFilter('POSITIVE')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                 filter === 'POSITIVE'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-br from-positive to-green-700 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+                  : 'glass border border-border text-text-secondary hover:border-positive hover:text-positive'
               }`}
             >
-              긍정 ({stats.positive})
+              ✅ 긍정 ({stats.positive})
             </button>
             <button
               onClick={() => setFilter('NEGATIVE')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                 filter === 'NEGATIVE'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-br from-negative to-red-700 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'
+                  : 'glass border border-border text-text-secondary hover:border-negative hover:text-negative'
               }`}
             >
-              부정 ({stats.negative})
+              ❌ 부정 ({stats.negative})
             </button>
             <button
               onClick={() => setFilter('NEUTRAL')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                 filter === 'NEUTRAL'
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-br from-neutral to-gray-700 text-white shadow-[0_0_20px_rgba(107,114,128,0.4)]'
+                  : 'glass border border-border text-text-secondary hover:border-neutral hover:text-neutral'
               }`}
             >
-              중립 ({stats.neutral})
+              ⚪ 중립 ({stats.neutral})
             </button>
           </div>
         )}
@@ -173,15 +228,15 @@ export default function DashboardPage() {
         {/* 뉴스 목록 */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">뉴스를 불러오는 중...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent-blue glow-effect"></div>
+            <p className="mt-4 text-text-secondary">뉴스를 불러오는 중...</p>
           </div>
         ) : filteredNews.length > 0 ? (
           <div className="grid gap-4">
             {filteredNews.map((item) => (
               <article
                 key={item.id}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6"
+                className="card hover-lift fade-in"
               >
                 <a
                   href={item.url}
@@ -189,12 +244,12 @@ export default function DashboardPage() {
                   rel="noopener noreferrer"
                   className="block group"
                 >
-                  <h2 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">
+                  <h2 className="text-lg font-bold text-text-primary group-hover:text-accent-cyan transition-colors mb-2">
                     {item.title} 🔗
                   </h2>
                 </a>
 
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                <p className="text-sm text-text-secondary mb-3 line-clamp-2">
                   {item.content}
                 </p>
 
@@ -202,28 +257,28 @@ export default function DashboardPage() {
                   <span
                     className={`px-3 py-1 rounded-full font-semibold ${
                       item.sentimentLabel === 'POSITIVE'
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-positive/20 text-positive border border-positive/30'
                         : item.sentimentLabel === 'NEGATIVE'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-700'
+                        ? 'bg-negative/20 text-negative border border-negative/30'
+                        : 'bg-neutral/20 text-neutral border border-neutral/30'
                     }`}
                   >
-                    {item.sentimentLabel} {item.sentimentScore?.toFixed(2)}
+                    {item.sentimentLabel === 'POSITIVE' ? '✅' : item.sentimentLabel === 'NEGATIVE' ? '❌' : '⚪'} {item.sentimentScore?.toFixed(2)}
                   </span>
-                  <span className="text-gray-500">
+                  <span className="text-text-muted">
                     📅 {new Date(item.publishedAt).toLocaleDateString('ko-KR')}
                   </span>
-                  <span className="text-gray-500">
+                  <span className="text-text-muted">
                     📰 {item.source}
                   </span>
                 </div>
 
                 {item.sentimentReasoning && (
                   <details className="mt-3">
-                    <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-900">
+                    <summary className="text-sm text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
                       💡 감성 분석 이유
                     </summary>
-                    <p className="mt-2 text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                    <p className="mt-2 text-sm text-text-tertiary glass p-3 rounded-lg border border-border">
                       {item.sentimentReasoning}
                     </p>
                   </details>
@@ -232,9 +287,9 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <p className="text-gray-600">뉴스가 없습니다.</p>
-            <p className="text-sm text-gray-500 mt-2">
+          <div className="text-center py-12 card">
+            <p className="text-text-secondary">뉴스가 없습니다.</p>
+            <p className="text-sm text-text-muted mt-2">
               다른 티커를 검색해보세요.
             </p>
           </div>
