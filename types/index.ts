@@ -1,63 +1,42 @@
-// 뉴스 감성 타입
 export interface News {
   id: number
   ticker: string
   title: string
+  titleKo: string | null
   content: string
-  source: string
-  url: string
-  publishedAt: string
-  sentimentLabel: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+  contentKo: string | null
   sentimentScore: number
-  sentimentConfidence: number
-  sentimentReasoning?: string
-  createdAt: string
+  sentimentLabel: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+  sentimentReasoning: string
+  sentimentReasoningKo: string | null
+  confidence: number
+  source: string
+  publishedAt: string
+  url: string
 }
 
-// 감성 시계열 데이터
 export interface SentimentDataPoint {
   timestamp: string
   averageScore: number
-  positiveCount: number
-  negativeCount: number
-  neutralCount: number
   totalCount: number
-  confidence: number
-}
-
-export interface SentimentSummary {
-  totalNews: number
-  averageScore: number
-  positiveCount: number
-  negativeCount: number
-  neutralCount: number
-  trend: 'IMPROVING' | 'DETERIORATING' | 'STABLE' | 'VOLATILE'
-  volatility: number
 }
 
 export interface SentimentTimeSeries {
   ticker: string
-  startDate: string
-  endDate: string
-  interval: string
   dataPoints: SentimentDataPoint[]
-  summary: SentimentSummary
+  summary: {
+    averageScore: number
+    totalNews: number
+    trend: string
+  }
 }
 
-// 알림 타입
 export interface Alert {
   id: number
   ticker: string
-  type: 'KEYWORD_DETECTED' | 'SENTIMENT_POSITIVE' | 'SENTIMENT_NEGATIVE' | 'SENTIMENT_SPIKE'
-  severity: 'INFO' | 'WARNING' | 'CRITICAL'
+  alertType: string
+  severity: string
   message: string
-  triggeredAt: string
   isRead: boolean
-  sentimentChange?: number
-}
-
-// API 응답 타입
-export interface ApiResponse<T> {
-  data: T
-  message?: string
+  createdAt: string
 }

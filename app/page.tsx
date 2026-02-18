@@ -1,5 +1,4 @@
 'use client'
-
 import { useState, useEffect } from 'react'
 import { newsApi } from '@/lib/api'
 import type { News } from '@/types'
@@ -15,13 +14,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<SentimentFilter>('ALL')
-  const [timeRange, setTimeRange] = useState(24) // 차트 시간 범위 (시간 단위)
+  const [timeRange, setTimeRange] = useState(24)
+  const [isKorean, setIsKorean] = useState(true) // 언어 토글 상태
 
   // 뉴스 가져오기
   const fetchNews = async (tickerSymbol: string) => {
     setLoading(true)
     setError(null)
-
     try {
       const data = await newsApi.getNewsByTicker(tickerSymbol.toUpperCase(), 50)
       setNews(data)
@@ -56,6 +55,9 @@ export default function DashboardPage() {
     neutral: news.filter(n => n.sentimentLabel === 'NEUTRAL').length,
   }
 
+  // 번역된 뉴스 개수
+  const translatedCount = news.filter(n => n.titleKo !== null).length
+
   // 티커 검색 핸들러
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,6 +91,25 @@ export default function DashboardPage() {
                 {loading ? '로딩...' : '검색'}
               </button>
             </form>
+
+            {/* 언어 토글 버튼 */}
+            <div className="flex items-center gap-3">
+              {!loading && news.length > 0 && (
+                <span className="text-xs text-text-muted hidden sm:block">
+                  번역 {translatedCount}/{news.length}
+                </span>
+              )}
+              <button
+                onClick={() => setIsKorean(!isKorean)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                  isKorean
+                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]'
+                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
+                }`}
+              >
+                🌐 {isKorean ? '한국어' : 'English'}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -117,59 +138,32 @@ export default function DashboardPage() {
         {/* 감성 시계열 차트 */}
         {!loading && news.length > 0 && (
           <div className="mb-6">
-            {/* 시간 범위 선택 버튼 */}
             <div className="mb-4 flex flex-wrap gap-2 items-center">
               <span className="text-sm text-text-secondary font-medium">
                 📅 시간 범위:
               </span>
-              <button
-                onClick={() => setTimeRange(24)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  timeRange === 24
-                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
-                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
-                }`}
-              >
-                24시간
-              </button>
-              <button
-                onClick={() => setTimeRange(72)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  timeRange === 72
-                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
-                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
-                }`}
-              >
-                3일
-              </button>
-              <button
-                onClick={() => setTimeRange(168)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  timeRange === 168
-                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
-                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
-                }`}
-              >
-                7일
-              </button>
-              <button
-                onClick={() => setTimeRange(720)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  timeRange === 720
-                    ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
-                    : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
-                }`}
-              >
-                30일
-              </button>
+              {[
+                { label: '24시간', value: 24 },
+                { label: '3일', value: 72 },
+                { label: '7일', value: 168 },
+                { label: '30일', value: 720 },
+              ].map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => setTimeRange(value)}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    timeRange === value
+                      ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                      : 'glass border border-border text-text-secondary hover:border-accent-blue hover:text-accent-blue'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* 차트 그리드 */}
             <div className="grid lg:grid-cols-2 gap-6">
-              {/* 라인 차트 */}
               <SentimentChart ticker={ticker} hours={timeRange} />
-
-              {/* 도넛 차트 */}
               <SentimentDonutChart
                 positive={stats.positive}
                 negative={stats.negative}
@@ -233,58 +227,77 @@ export default function DashboardPage() {
           </div>
         ) : filteredNews.length > 0 ? (
           <div className="grid gap-4">
-            {filteredNews.map((item) => (
-              <article
-                key={item.id}
-                className="card hover-lift fade-in"
-              >
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block group"
-                >
-                  <h2 className="text-lg font-bold text-text-primary group-hover:text-accent-cyan transition-colors mb-2">
-                    {item.title} 🔗
-                  </h2>
-                </a>
+            {filteredNews.map((item) => {
+              const hasTranslation = item.titleKo !== null
+              const displayTitle = isKorean && hasTranslation ? item.titleKo! : item.title
+              const displayContent = isKorean && item.contentKo ? item.contentKo : item.content
+              const displayReasoning = isKorean && item.sentimentReasoningKo
+                ? item.sentimentReasoningKo
+                : item.sentimentReasoning
 
-                <p className="text-sm text-text-secondary mb-3 line-clamp-2">
-                  {item.content}
-                </p>
+              return (
+                <article key={item.id} className="card hover-lift fade-in">
+                  {/* 상단: 감성 배지 + 번역 상태 + 날짜 */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-3 py-1 rounded-full font-semibold text-sm ${
+                          item.sentimentLabel === 'POSITIVE'
+                            ? 'bg-positive/20 text-positive border border-positive/30'
+                            : item.sentimentLabel === 'NEGATIVE'
+                            ? 'bg-negative/20 text-negative border border-negative/30'
+                            : 'bg-neutral/20 text-neutral border border-neutral/30'
+                        }`}
+                      >
+                        {item.sentimentLabel === 'POSITIVE' ? '✅' : item.sentimentLabel === 'NEGATIVE' ? '❌' : '⚪'} {item.sentimentScore?.toFixed(2)}
+                      </span>
+                      {hasTranslation ? (
+                        <span className="text-xs px-2 py-1 rounded-md bg-accent-green/10 text-accent-green border border-accent-green/30">
+                          ✓ 번역됨
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-1 rounded-md bg-text-muted/10 text-text-muted border border-text-muted/30">
+                          번역 대기
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-text-muted">
+                      <span>📅 {new Date(item.publishedAt).toLocaleDateString('ko-KR')}</span>
+                      <span>📰 {item.source}</span>
+                    </div>
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-4 text-sm">
-                  <span
-                    className={`px-3 py-1 rounded-full font-semibold ${
-                      item.sentimentLabel === 'POSITIVE'
-                        ? 'bg-positive/20 text-positive border border-positive/30'
-                        : item.sentimentLabel === 'NEGATIVE'
-                        ? 'bg-negative/20 text-negative border border-negative/30'
-                        : 'bg-neutral/20 text-neutral border border-neutral/30'
-                    }`}
+                  {/* 제목 */}
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group"
                   >
-                    {item.sentimentLabel === 'POSITIVE' ? '✅' : item.sentimentLabel === 'NEGATIVE' ? '❌' : '⚪'} {item.sentimentScore?.toFixed(2)}
-                  </span>
-                  <span className="text-text-muted">
-                    📅 {new Date(item.publishedAt).toLocaleDateString('ko-KR')}
-                  </span>
-                  <span className="text-text-muted">
-                    📰 {item.source}
-                  </span>
-                </div>
+                    <h2 className="text-lg font-bold text-text-primary group-hover:text-accent-cyan transition-colors mb-2">
+                      {displayTitle} 🔗
+                    </h2>
+                  </a>
 
-                {item.sentimentReasoning && (
-                  <details className="mt-3">
-                    <summary className="text-sm text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
-                      💡 감성 분석 이유
-                    </summary>
-                    <p className="mt-2 text-sm text-text-tertiary glass p-3 rounded-lg border border-border">
-                      {item.sentimentReasoning}
-                    </p>
-                  </details>
-                )}
-              </article>
-            ))}
+                  {/* 본문 */}
+                  <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                    {displayContent}
+                  </p>
+
+                  {/* 감성 분석 이유 */}
+                  {displayReasoning && (
+                    <details className="mt-3">
+                      <summary className="text-sm text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+                        💡 감성 분석 이유
+                      </summary>
+                      <p className="mt-2 text-sm text-text-tertiary glass p-3 rounded-lg border border-border">
+                        {displayReasoning}
+                      </p>
+                    </details>
+                  )}
+                </article>
+              )
+            })}
           </div>
         ) : (
           <div className="text-center py-12 card">
