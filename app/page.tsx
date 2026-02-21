@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { newsApi } from '@/lib/api'
-import type { News } from '@/types'
+import type { News, NewsSummary } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
+import NewsCard from '@/components/NewsCard'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 
@@ -15,21 +16,48 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<SentimentFilter>('ALL')
   const [timeRange, setTimeRange] = useState(24)
-  const [isKorean, setIsKorean] = useState(true) // 언어 토글 상태
+  const [isKorean, setIsKorean] = useState(true) // 전체 언어 토글
+
+  // AI 브리핑 상태
+  const [summary, setSummary] = useState<NewsSummary | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [showSummary, setShowSummary] = useState(true)
 
   // 뉴스 가져오기
   const fetchNews = async (tickerSymbol: string) => {
     setLoading(true)
     setError(null)
+    setSummary(null)
+    setSummaryError(null)
     try {
       const data = await newsApi.getNewsByTicker(tickerSymbol.toUpperCase(), 50)
       setNews(data)
       setFilteredNews(data)
+      // 뉴스 로드 후 자동으로 AI 브리핑 생성
+      if (data.length > 0) {
+        fetchSummary(tickerSymbol.toUpperCase())
+      }
     } catch (err: any) {
       console.error('뉴스 로드 실패:', err)
       setError('뉴스를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // AI 브리핑 가져오기
+  const fetchSummary = async (tickerSymbol: string) => {
+    setSummaryLoading(true)
+    setSummaryError(null)
+    try {
+      const data = await newsApi.getSummary(tickerSymbol)
+      setSummary(data)
+    } catch (err: any) {
+      console.error('AI 브리핑 로드 실패:', err)
+      setSummaryError('AI 브리핑을 불러오는데 실패했습니다.')
+    } finally {
+      setSummaryLoading(false)
     }
   }
 
@@ -122,6 +150,88 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* AI 브리핑 섹션 */}
+        {!loading && news.length > 0 && (
+          <div className="mb-6 fade-in">
+            <div className="card">
+              {/* 브리핑 헤더 */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-lg">🤖</span>
+                  <h2 className="font-bold text-text-primary">AI 뉴스 브리핑</h2>
+                  <span className="text-xs text-text-muted px-2 py-0.5 rounded-full bg-accent-blue/10 border border-accent-blue/20">
+                    {ticker}
+                  </span>
+                  {summary && (
+                    <span
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        summary.overallSentiment === 'POSITIVE'
+                          ? 'bg-positive/20 text-positive border border-positive/30'
+                          : summary.overallSentiment === 'NEGATIVE'
+                          ? 'bg-negative/20 text-negative border border-negative/30'
+                          : 'bg-neutral/20 text-neutral border border-neutral/30'
+                      }`}
+                    >
+                      {summary.overallSentiment === 'POSITIVE'
+                        ? '✅ 긍정'
+                        : summary.overallSentiment === 'NEGATIVE'
+                        ? '❌ 부정'
+                        : '⚪ 중립'}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowSummary(!showSummary)}
+                  className="text-xs text-text-muted hover:text-text-secondary transition-colors ml-2 shrink-0"
+                >
+                  {showSummary ? '접기 ▲' : '펼치기 ▼'}
+                </button>
+              </div>
+
+              {showSummary && (
+                <>
+                  {summaryLoading ? (
+                    <div className="flex items-center gap-3 py-4">
+                      <div className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-accent-blue"></div>
+                      <span className="text-sm text-text-secondary">AI가 뉴스를 분석하고 있습니다...</span>
+                    </div>
+                  ) : summaryError ? (
+                    <div className="text-sm text-negative py-2">
+                      {summaryError}
+                      <button
+                        onClick={() => fetchSummary(ticker)}
+                        className="ml-2 underline hover:no-underline"
+                      >
+                        재시도
+                      </button>
+                    </div>
+                  ) : summary ? (
+                    <>
+                      <p className="text-sm text-text-secondary leading-relaxed mb-3">
+                        {summary.summary}
+                      </p>
+                      <div className="flex items-center flex-wrap gap-3 text-xs text-text-muted border-t border-border pt-3">
+                        <span>
+                          분석 기준: 최근 뉴스{' '}
+                          {summary.positiveCount + summary.negativeCount + summary.neutralCount}건
+                        </span>
+                        <span>✅ 긍정 {summary.positiveCount}</span>
+                        <span>❌ 부정 {summary.negativeCount}</span>
+                        <span>⚪ 중립 {summary.neutralCount}</span>
+                        {summary.generatedAt && (
+                          <span className="ml-auto">
+                            생성: {new Date(summary.generatedAt).toLocaleTimeString('ko-KR')}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 통계 요약 카드 */}
         {!loading && news.length > 0 && (
           <div className="mb-6 fade-in">
@@ -139,9 +249,7 @@ export default function DashboardPage() {
         {!loading && news.length > 0 && (
           <div className="mb-6">
             <div className="mb-4 flex flex-wrap gap-2 items-center">
-              <span className="text-sm text-text-secondary font-medium">
-                📅 시간 범위:
-              </span>
+              <span className="text-sm text-text-secondary font-medium">📅 시간 범위:</span>
               {[
                 { label: '24시간', value: 24 },
                 { label: '3일', value: 72 },
@@ -227,84 +335,18 @@ export default function DashboardPage() {
           </div>
         ) : filteredNews.length > 0 ? (
           <div className="grid gap-4">
-            {filteredNews.map((item) => {
-              const hasTranslation = item.titleKo !== null
-              const displayTitle = isKorean && hasTranslation ? item.titleKo! : item.title
-              const displayContent = isKorean && item.contentKo ? item.contentKo : item.content
-              const displayReasoning = isKorean && item.sentimentReasoningKo
-                ? item.sentimentReasoningKo
-                : item.sentimentReasoning
-
-              return (
-                <article key={item.id} className="card hover-lift fade-in">
-                  {/* 상단: 감성 배지 + 번역 상태 + 날짜 */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-3 py-1 rounded-full font-semibold text-sm ${
-                          item.sentimentLabel === 'POSITIVE'
-                            ? 'bg-positive/20 text-positive border border-positive/30'
-                            : item.sentimentLabel === 'NEGATIVE'
-                            ? 'bg-negative/20 text-negative border border-negative/30'
-                            : 'bg-neutral/20 text-neutral border border-neutral/30'
-                        }`}
-                      >
-                        {item.sentimentLabel === 'POSITIVE' ? '✅' : item.sentimentLabel === 'NEGATIVE' ? '❌' : '⚪'} {item.sentimentScore?.toFixed(2)}
-                      </span>
-                      {hasTranslation ? (
-                        <span className="text-xs px-2 py-1 rounded-md bg-accent-green/10 text-accent-green border border-accent-green/30">
-                          ✓ 번역됨
-                        </span>
-                      ) : (
-                        <span className="text-xs px-2 py-1 rounded-md bg-text-muted/10 text-text-muted border border-text-muted/30">
-                          번역 대기
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-text-muted">
-                      <span>📅 {new Date(item.publishedAt).toLocaleDateString('ko-KR')}</span>
-                      <span>📰 {item.source}</span>
-                    </div>
-                  </div>
-
-                  {/* 제목 */}
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block group"
-                  >
-                    <h2 className="text-lg font-bold text-text-primary group-hover:text-accent-cyan transition-colors mb-2">
-                      {displayTitle} 🔗
-                    </h2>
-                  </a>
-
-                  {/* 본문 */}
-                  <p className="text-sm text-text-secondary mb-3 line-clamp-2">
-                    {displayContent}
-                  </p>
-
-                  {/* 감성 분석 이유 */}
-                  {displayReasoning && (
-                    <details className="mt-3">
-                      <summary className="text-sm text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
-                        💡 감성 분석 이유
-                      </summary>
-                      <p className="mt-2 text-sm text-text-tertiary glass p-3 rounded-lg border border-border">
-                        {displayReasoning}
-                      </p>
-                    </details>
-                  )}
-                </article>
-              )
-            })}
+            {filteredNews.map((item) => (
+              <NewsCard
+                key={item.id}
+                news={item}
+                globalIsKorean={isKorean}
+              />
+            ))}
           </div>
         ) : (
           <div className="text-center py-12 card">
             <p className="text-text-secondary">뉴스가 없습니다.</p>
-            <p className="text-sm text-text-muted mt-2">
-              다른 티커를 검색해보세요.
-            </p>
+            <p className="text-sm text-text-muted mt-2">다른 티커를 검색해보세요.</p>
           </div>
         )}
       </main>

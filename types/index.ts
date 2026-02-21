@@ -15,6 +15,16 @@ export interface News {
   url: string
 }
 
+export interface NewsSummary {
+  ticker: string
+  summary: string
+  positiveCount: number
+  negativeCount: number
+  neutralCount: number
+  overallSentiment: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+  generatedAt: string
+}
+
 export interface SentimentDataPoint {
   timestamp: string
   averageScore: number

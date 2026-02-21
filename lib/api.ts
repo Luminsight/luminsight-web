@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { News, SentimentTimeSeries, Alert } from '@/types'
+import type { News, SentimentTimeSeries, Alert, NewsSummary } from '@/types'
 
 // 백엔드 API URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
@@ -23,6 +23,11 @@ export const newsApi = {
   // 모든 뉴스 조회
   getAllNews: async (limit: number = 50): Promise<News[]> => {
     const response = await api.get('/news', { params: { limit } })
+    return response.data
+  },
+
+  getSummary: async (ticker: string): Promise<NewsSummary> => {
+    const response = await api.get(`/news/${ticker}/summary`)
     return response.data
   },
 }
