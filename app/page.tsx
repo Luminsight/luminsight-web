@@ -279,13 +279,16 @@ export default function DashboardPage() {
                 negative={stats.negative}
                 neutral={stats.neutral}
               />
-              {/* 종합 시그널 스코어 */}
-              <div className="mt-6">
-                <SignalScore ticker={ticker} />
-              </div>
-              <div className="mt-6">
-                <TechnicalChart ticker={ticker} />
-              </div>
+            </div>
+
+            {/* 종합 시그널 스코어 */}
+            <div className="mt-6">
+              <SignalScore ticker={ticker} />
+            </div>
+
+            {/* 기술적 지표 차트 */}
+            <div className="mt-6">
+              <TechnicalChart ticker={ticker} />
             </div>
           </div>
         )}
