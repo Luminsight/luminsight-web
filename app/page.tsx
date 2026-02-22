@@ -5,6 +5,7 @@ import type { News, NewsSummary } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
 import NewsCard from '@/components/NewsCard'
+import TechnicalChart from '@/components/TechnicalChart'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 
@@ -277,6 +278,9 @@ export default function DashboardPage() {
                 negative={stats.negative}
                 neutral={stats.neutral}
               />
+              <div className="mt-6">
+                <TechnicalChart ticker={ticker} />
+              </div>
             </div>
           </div>
         )}

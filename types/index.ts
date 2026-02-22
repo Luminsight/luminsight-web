@@ -41,6 +41,31 @@ export interface SentimentTimeSeries {
   }
 }
 
+export interface StockPricePoint {
+  date: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export type RsiSignal = 'OVERSOLD' | 'BEARISH' | 'NEUTRAL' | 'BULLISH' | 'OVERBOUGHT'
+
+export interface RsiDataPoint {
+  date: string
+  value: number
+  signal: RsiSignal
+}
+
+export interface TechnicalIndicatorData {
+  ticker: string
+  from: string
+  to: string
+  priceData: StockPricePoint[]
+  rsi: RsiDataPoint[]
+}
+
 export interface Alert {
   id: number
   ticker: string

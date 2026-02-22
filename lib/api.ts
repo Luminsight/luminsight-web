@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { News, SentimentTimeSeries, Alert, NewsSummary } from '@/types'
+import type { News, NewsSummary, TechnicalIndicatorData } from '@/types'
 
 // 백엔드 API URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
@@ -77,5 +77,12 @@ export const stockApi = {
   getSupportedTickers: async (): Promise<string[]> => {
     // 임시로 하드코딩
     return ['AAPL', 'TSLA', 'NVDA', 'GOOGL', 'MSFT', 'AMZN', 'META']
+  },
+}
+
+export const technicalApi = {
+  getIndicators: async (ticker: string, days: number = 30): Promise<TechnicalIndicatorData> => {
+    const response = await api.get(`/technical/${ticker}/indicators`, { params: { days } })
+    return response.data
   },
 }
