@@ -58,12 +58,21 @@ export interface RsiDataPoint {
   signal: RsiSignal
 }
 
+export interface BollingerDataPoint {
+  date: string
+  upper: number
+  middle: number
+  lower: number
+  percentB: number
+}
+
 export interface TechnicalIndicatorData {
   ticker: string
   from: string
   to: string
   priceData: StockPricePoint[]
   rsi: RsiDataPoint[]
+  bollingerBands: BollingerDataPoint[]  // ← 이 줄 추가
 }
 
 export interface Alert {
