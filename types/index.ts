@@ -80,15 +80,7 @@ export interface TechnicalIndicatorData {
   rsi: RsiDataPoint[]
   bollingerBands: BollingerDataPoint[]
   movingAverages: MaDataPoint[]
-}
-
-export interface TechnicalIndicatorData {
-  ticker: string
-  from: string
-  to: string
-  priceData: StockPricePoint[]
-  rsi: RsiDataPoint[]
-  bollingerBands: BollingerDataPoint[]
+  macd: MacdDataPoint[]
 }
 
 export interface ComponentScore {
@@ -109,6 +101,16 @@ export interface SignalScoreResult {
   movingAverage: ComponentScore
   sentiment: ComponentScore
   analyzedAt: string
+}
+
+export type MacdCross = 'GOLDEN' | 'DEAD'
+
+export interface MacdDataPoint {
+  date: string
+  macd: number
+  signal: number
+  histogram: number
+  crossType: MacdCross | null
 }
 
 export interface Alert {
