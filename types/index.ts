@@ -66,6 +66,22 @@ export interface BollingerDataPoint {
   percentB: number
 }
 
+export interface MaDataPoint {
+  date: string
+  sma20: number | null
+  sma50: number | null
+}
+
+export interface TechnicalIndicatorData {
+  ticker: string
+  from: string
+  to: string
+  priceData: StockPricePoint[]
+  rsi: RsiDataPoint[]
+  bollingerBands: BollingerDataPoint[]
+  movingAverages: MaDataPoint[]   // ← 추가
+}
+
 export interface TechnicalIndicatorData {
   ticker: string
   from: string
