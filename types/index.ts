@@ -72,6 +72,16 @@ export interface MaDataPoint {
   sma50: number | null
 }
 
+export type MacdCross = 'GOLDEN' | 'DEAD'
+
+export interface MacdDataPoint {
+  date: string
+  macd: number
+  signal: number
+  histogram: number
+  crossType: MacdCross | null
+}
+
 export interface TechnicalIndicatorData {
   ticker: string
   from: string
@@ -101,16 +111,6 @@ export interface SignalScoreResult {
   movingAverage: ComponentScore
   sentiment: ComponentScore
   analyzedAt: string
-}
-
-export type MacdCross = 'GOLDEN' | 'DEAD'
-
-export interface MacdDataPoint {
-  date: string
-  macd: number
-  signal: number
-  histogram: number
-  crossType: MacdCross | null
 }
 
 export interface Alert {
