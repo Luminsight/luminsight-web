@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { News, NewsSummary, TechnicalIndicatorData } from '@/types'
+import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult } from '@/types'
 
 // 백엔드 API URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
@@ -83,6 +83,11 @@ export const stockApi = {
 export const technicalApi = {
   getIndicators: async (ticker: string, days: number = 30): Promise<TechnicalIndicatorData> => {
     const response = await api.get(`/technical/${ticker}/indicators`, { params: { days } })
+    return response.data
+  },
+  // 종합 시그널 스코어 (RSI + MACD + BB + MA + 뉴스 감성)
+  getSignalScore: async (ticker: string, days: number = 30): Promise<SignalScoreResult> => {
+    const response = await api.get(`/technical/${ticker}/signal-score`, { params: { days } })
     return response.data
   },
 }

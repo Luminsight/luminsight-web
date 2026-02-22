@@ -12,9 +12,11 @@ import {
   ReferenceArea,
   ComposedChart,
   Area,
+  Bar,
+  Cell,
 } from 'recharts'
 import { technicalApi } from '@/lib/api'
-import type { TechnicalIndicatorData, RsiSignal } from '@/types'
+import type { TechnicalIndicatorData, RsiSignal, MacdCross } from '@/types'
 
 interface Props { ticker: string }
 type Period = 7 | 30 | 60 | 90
@@ -73,6 +75,27 @@ const RsiTooltip = ({ active, payload, label }: any) => {
   )
 }
 
+const MacdTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null
+  const d = payload[0]?.payload
+  const cross = d?.crossType as MacdCross | null
+  return (
+    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-xs shadow-xl space-y-0.5">
+      <p className="text-gray-400 mb-1">{label}</p>
+      <p style={{ color: '#3b82f6' }}>MACD {d?.macd?.toFixed(3)}</p>
+      <p style={{ color: '#f97316' }}>Signal {d?.signal?.toFixed(3)}</p>
+      <p style={{ color: d?.histogram >= 0 ? '#22c55e' : '#ef4444' }}>
+        히스토그램 {d?.histogram >= 0 ? '+' : ''}{d?.histogram?.toFixed(3)}
+      </p>
+      {cross && (
+        <p className="font-semibold" style={{ color: cross === 'GOLDEN' ? '#22c55e' : '#ef4444' }}>
+          {cross === 'GOLDEN' ? '⬆ 골든크로스!' : '⬇ 데드크로스!'}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function TechnicalChart({ ticker }: Props) {
   const [data, setData] = useState<TechnicalIndicatorData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -83,6 +106,7 @@ export default function TechnicalChart({ ticker }: Props) {
     { id: 'bollinger', label: '볼린저 밴드', color: '#6366f1', enabled: true },
     { id: 'ma',        label: '이동평균선',  color: '#10b981', enabled: true },
     { id: 'rsi',       label: 'RSI (14)',    color: '#f59e0b', enabled: true },
+    { id: 'macd', label: 'MACD', color: '#3b82f6', enabled: true },
   ])
 
   const fetchData = useCallback(async () => {
@@ -105,6 +129,7 @@ export default function TechnicalChart({ ticker }: Props) {
   const bollingerEnabled = indicators.find(i => i.id === 'bollinger')?.enabled
   const maEnabled        = indicators.find(i => i.id === 'ma')?.enabled
   const rsiEnabled       = indicators.find(i => i.id === 'rsi')?.enabled
+  const macdEnabled = indicators.find(i => i.id === 'macd')?.enabled
 
   const fmtDate = (d: string) => d?.slice(5) ?? ''
 
@@ -299,7 +324,104 @@ export default function TechnicalChart({ ticker }: Props) {
             </div>
           )}
 
-          {!priceEnabled && !rsiEnabled && (
+          {/* ── MACD 차트 ──────────────────────────────────── */}
+          {macdEnabled && data.macd?.length > 0 && (
+            <div>
+                <div className="flex items-center gap-3 mb-1 ml-1">
+                    <p className="text-gray-500 text-xs">MACD (12, 26, 9)</p>
+                    <span className="text-xs" style={{ color: '#3b82f6' }}>─ MACD</span>
+                    <span className="text-xs" style={{ color: '#f97316' }}>- - Signal</span>
+                    <span className="text-xs text-emerald-500/70">▌ 히스토그램</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={140}>
+                        <ComposedChart data={data.macd} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                            <XAxis
+                            dataKey="date"
+                            tickFormatter={fmtDate}
+                            tick={{ fill: '#6b7280', fontSize: 10 }}
+                            axisLine={false}
+                            tickLine={false}
+                            interval="preserveStartEnd"
+                            />
+                            <YAxis
+                            tick={{ fill: '#6b7280', fontSize: 10 }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={v => v.toFixed(1)}
+                            width={42}
+                            />
+                            <Tooltip content={<MacdTooltip />} />
+                            <ReferenceLine y={0} stroke="#4b5563" strokeWidth={1} />
+                            <Bar dataKey="histogram" maxBarSize={8} radius={[1, 1, 0, 0]}>
+                            {data.macd.map((entry, index) => (
+                                <Cell
+                                key={`macd-hist-${index}`}
+                                fill={entry.histogram >= 0 ? '#22c55e88' : '#ef444488'}
+                                />
+                            ))}
+                            </Bar>
+                            <Line
+                            type="monotone"
+                            dataKey="macd"
+                            stroke="#3b82f6"
+                            strokeWidth={1.5}
+                            dot={false}
+                            activeDot={{ r: 3, fill: '#3b82f6' }}
+                            />
+                            <Line
+                            type="monotone"
+                            dataKey="signal"
+                            stroke="#f97316"
+                            strokeWidth={1.5}
+                            strokeDasharray="4 2"
+                            dot={false}
+                            activeDot={{ r: 3, fill: '#f97316' }}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                    {/* MACD 현재값 요약 */}
+                    {(() => {
+                        const latest = data.macd[data.macd.length - 1]
+                        if (!latest) return null
+                        const isBullish = latest.histogram > 0
+                        const recentCross = data.macd.slice(-5).find(d => d.crossType != null)
+                        const diverging = data.macd.length >= 3 && (() => {
+                        const last3 = data.macd.slice(-3)
+                        const histValues = last3.map(d => d.histogram)
+                        const allRising = histValues.every((v, i) => i === 0 || v > histValues[i - 1])
+                        const allFalling = histValues.every((v, i) => i === 0 || v < histValues[i - 1])
+                        return allRising ? '모멘텀 강화 중 ▲' : allFalling ? '모멘텀 약화 중 ▼' : null
+                        })()  
+                        return (
+                            <div className="flex items-center gap-3 mt-2 ml-1 text-xs flex-wrap">
+                            <span className="text-gray-500">
+                                MACD <span style={{ color: '#3b82f6' }}>{latest.macd > 0 ? '+' : ''}{latest.macd.toFixed(3)}</span>
+                            </span>
+                            <span className="text-gray-500">
+                                Signal <span style={{ color: '#f97316' }}>{latest.signal.toFixed(3)}</span>
+                            </span>
+                            <span className="text-gray-500">
+                                히스토그램{' '}
+                                <span style={{ color: isBullish ? '#22c55e' : '#ef4444' }}>
+                                {isBullish ? '+' : ''}{latest.histogram.toFixed(3)}
+                                </span>
+                            </span>
+                            {recentCross && (
+                                <span className="font-medium" style={{ color: recentCross.crossType === 'GOLDEN' ? '#22c55e' : '#ef4444' }}>
+                                {recentCross.crossType === 'GOLDEN' ? '⬆ 골든크로스' : '⬇ 데드크로스'} (최근 5일)
+                                </span>
+                            )}
+                            {!recentCross && diverging && (
+                                <span className="text-gray-400">{diverging}</span>
+                            )}
+                        </div>
+                    )
+                })()}
+            </div>
+        )}
+
+          {!priceEnabled && !rsiEnabled && !macdEnabled && (
             <div className="flex items-center justify-center h-32 text-gray-600 text-sm">표시할 지표를 선택하세요</div>
           )}
         </div>

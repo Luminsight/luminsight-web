@@ -79,7 +79,7 @@ export interface TechnicalIndicatorData {
   priceData: StockPricePoint[]
   rsi: RsiDataPoint[]
   bollingerBands: BollingerDataPoint[]
-  movingAverages: MaDataPoint[]   // ← 추가
+  movingAverages: MaDataPoint[]
 }
 
 export interface TechnicalIndicatorData {
@@ -88,7 +88,27 @@ export interface TechnicalIndicatorData {
   to: string
   priceData: StockPricePoint[]
   rsi: RsiDataPoint[]
-  bollingerBands: BollingerDataPoint[]  // ← 이 줄 추가
+  bollingerBands: BollingerDataPoint[]
+}
+
+export interface ComponentScore {
+  name: string
+  rawScore: number
+  weight: number
+  description: string
+}
+
+export interface SignalScoreResult {
+  ticker: string
+  score: number
+  label: string
+  emoji: string
+  rsi: ComponentScore
+  macd: ComponentScore
+  bollingerBand: ComponentScore
+  movingAverage: ComponentScore
+  sentiment: ComponentScore
+  analyzedAt: string
 }
 
 export interface Alert {

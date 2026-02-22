@@ -6,6 +6,7 @@ import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
 import NewsCard from '@/components/NewsCard'
 import TechnicalChart from '@/components/TechnicalChart'
+import SignalScore from '@/components/SignalScore'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 
@@ -278,6 +279,10 @@ export default function DashboardPage() {
                 negative={stats.negative}
                 neutral={stats.neutral}
               />
+              {/* 종합 시그널 스코어 */}
+              <div className="mt-6">
+                <SignalScore ticker={ticker} />
+              </div>
               <div className="mt-6">
                 <TechnicalChart ticker={ticker} />
               </div>
