@@ -81,14 +81,36 @@ export const stockApi = {
   },
 }
 
+export interface SignalWeights {
+  rsiWeight: number        // 0~100
+  macdWeight: number
+  bbWeight: number
+  maWeight: number
+  sentimentWeight: number
+}
+
+export const DEFAULT_WEIGHTS: SignalWeights = {
+  rsiWeight: 20,
+  macdWeight: 25,
+  bbWeight: 20,
+  maWeight: 15,
+  sentimentWeight: 20,
+}
+
 export const technicalApi = {
   getIndicators: async (ticker: string, days: number = 30): Promise<TechnicalIndicatorData> => {
     const response = await api.get(`/technical/${ticker}/indicators`, { params: { days } })
     return response.data
   },
-  // 종합 시그널 스코어 (RSI + MACD + BB + MA + 뉴스 감성)
-  getSignalScore: async (ticker: string, days: number = 30): Promise<SignalScoreResult> => {
-    const response = await api.get(`/technical/${ticker}/signal-score`, { params: { days } })
+  // 종합 시그널 스코어 (커스텀 가중치 지원)
+  getSignalScore: async (
+    ticker: string,
+    days: number = 30,
+    weights: SignalWeights = DEFAULT_WEIGHTS
+  ): Promise<SignalScoreResult> => {
+    const response = await api.get(`/technical/${ticker}/signal-score`, {
+      params: { days, ...weights }
+    })
     return response.data
   },
 }
