@@ -21,16 +21,10 @@ export default function NewsCard({ news, globalIsKorean }: NewsCardProps) {
     }
   }
 
-  const getSentimentColor = (score: number) => {
-    if (score >= 0.5) return 'text-accent-green'
-    if (score <= -0.5) return 'text-accent-pink'
-    return 'text-text-secondary'
-  }
-
-  const getSentimentGradient = (score: number) => {
-    if (score >= 0.5) return 'from-green-500/10 to-transparent'
-    if (score <= -0.5) return 'from-pink-500/10 to-transparent'
-    return 'from-gray-500/10 to-transparent'
+  const getSentimentStyle = (score: number) => {
+    if (score >= 0.5) return { color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' }
+    if (score <= -0.5) return { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' }
+    return { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' }
   }
 
   const getSentimentIcon = (score: number) => {
@@ -52,77 +46,135 @@ export default function NewsCard({ news, globalIsKorean }: NewsCardProps) {
     return date.toLocaleDateString('ko-KR')
   }
 
-  const displayTitle = isKorean && hasTranslation ? news.titleKo : news.title
-  const displayContent = isKorean && hasTranslation ? news.contentKo : news.content
+  const displayTitle    = isKorean && hasTranslation ? news.titleKo    : news.title
+  const displayContent  = isKorean && hasTranslation ? news.contentKo  : news.content
   const displayReasoning = isKorean && hasTranslation ? news.sentimentReasoningKo : news.sentimentReasoning
 
+  const sentStyle = getSentimentStyle(news.sentimentScore)
+
   return (
-    <article className="glass rounded-xl border border-border hover:border-accent-blue transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] overflow-hidden">
-      <div className="p-4 border-b border-border flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 rounded-lg bg-gradient-to-br from-accent-blue to-blue-700 text-white font-bold text-sm shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+    <article
+      style={{
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '14px',
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+      }}
+      onMouseEnter={e => {
+        ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+        ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+      }}
+      onMouseLeave={e => {
+        ;(e.currentTarget as HTMLElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)'
+        ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+      }}
+    >
+      {/* 헤더 */}
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* 티커 배지 */}
+          <span style={{
+            padding: '3px 10px',
+            borderRadius: '8px',
+            background: '#3d5af1',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: '13px',
+            letterSpacing: '0.02em',
+          }}>
             {news.ticker}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{getSentimentIcon(news.sentimentScore)}</span>
-            <span className={`font-bold text-lg ${getSentimentColor(news.sentimentScore)}`}>
-              {news.sentimentScore >= 0 ? '+' : ''}{news.sentimentScore.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-text-muted">신뢰도</span>
-            <span className="text-sm font-semibold text-accent-cyan">
-              {(news.confidence * 100).toFixed(0)}%
-            </span>
-          </div>
+
+          {/* 감성 점수 */}
+          <span style={{ fontSize: '18px' }}>{getSentimentIcon(news.sentimentScore)}</span>
+          <span style={{ fontWeight: 700, fontSize: '16px', color: sentStyle.color }}>
+            {news.sentimentScore >= 0 ? '+' : ''}{news.sentimentScore.toFixed(2)}
+          </span>
+
+          {/* 신뢰도 */}
+          <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+            신뢰도 <strong style={{ color: '#475569' }}>{(news.confidence * 100).toFixed(0)}%</strong>
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* 번역 상태 */}
           {hasTranslation ? (
-            <span className="text-xs px-2 py-1 rounded-md bg-accent-green/20 text-accent-green border border-accent-green/30">
+            <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }}>
               ✓ 번역됨
             </span>
           ) : (
-            <span className="text-xs px-2 py-1 rounded-md bg-text-muted/20 text-text-muted border border-text-muted/30">
+            <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: '#f8fafc', color: '#94a3b8', border: '1px solid #e2e8f0' }}>
               번역 대기
             </span>
           )}
+
+          {/* 언어 토글 */}
           {hasTranslation && (
             <button
               onClick={handleToggle}
               title={localOverride !== null ? '클릭 시 전체 설정으로 되돌림' : '클릭 시 개별 설정'}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1 ${
-                isKorean
-                  ? 'bg-gradient-to-br from-accent-blue to-blue-700 text-white shadow-[0_0_15px_rgba(59,130,246,0.3)]'
-                  : 'bg-bg-tertiary text-text-secondary hover:bg-bg-secondary border border-border'
-              }`}
+              style={{
+                padding: '3px 10px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                border: 'none',
+                background: isKorean ? '#3d5af1' : '#f1f5f9',
+                color: isKorean ? '#fff' : '#475569',
+                transition: 'all 0.15s ease',
+              }}
             >
-              {localOverride !== null && <span className="text-yellow-300 text-[10px]">✦</span>}
+              {localOverride !== null && <span style={{ color: '#fbbf24', fontSize: '10px' }}>✦</span>}
               {isKorean ? 'KO' : 'EN'}
             </button>
           )}
         </div>
       </div>
 
-      <div className={`bg-gradient-to-br ${getSentimentGradient(news.sentimentScore)} p-6`}>
-        <h3 className="text-xl font-bold text-text-primary mb-3 leading-tight">{displayTitle}</h3>
-        <p className="text-text-secondary leading-relaxed mb-4 line-clamp-3">{displayContent}</p>
-        <div className="glass rounded-lg p-4 border border-border-light">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm">🤖</span>
-            <span className="text-xs font-semibold text-accent-cyan">AI 감성 분석</span>
+      {/* 본문 */}
+      <div style={{ padding: '18px 20px', background: sentStyle.bg }}>
+        <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '10px', lineHeight: 1.5 }}>
+          {displayTitle}
+        </h3>
+        <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.7, marginBottom: '14px',
+          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {displayContent}
+        </p>
+
+        {/* AI 분석 박스 */}
+        <div style={{
+          background: '#ffffff',
+          border: `1px solid ${sentStyle.border}`,
+          borderRadius: '10px',
+          padding: '12px 14px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+            <span style={{ fontSize: '13px' }}>🤖</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>AI 감성 분석</span>
           </div>
-          <p className="text-sm text-text-secondary leading-relaxed">{displayReasoning}</p>
+          <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.65, margin: 0 }}>{displayReasoning}</p>
         </div>
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-          <div className="flex items-center gap-2 text-xs text-text-muted">
-            <span>🕒</span>
-            <span>{formatDate(news.publishedAt)}</span>
-          </div>
-          <a href={news.url} target="_blank" rel="noopener noreferrer"
-            className="text-xs font-semibold text-accent-cyan hover:text-accent-blue transition-colors flex items-center gap-1">
+
+        {/* 푸터 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f1f5f9' }}>
+          <span style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            🕒 {formatDate(news.publishedAt)}
+          </span>
+          <a
+            href={news.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '12px', fontWeight: 600, color: '#3d5af1', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+          >
             원문 보기
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
