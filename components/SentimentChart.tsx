@@ -34,7 +34,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function SentimentChart({ ticker, hours }: Props) {
-  const [data, setData]       = useState<SentimentTimeSeries[]>([])
+  const [data, setData]       = useState<SentimentTimeSeries | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
 
@@ -61,7 +61,7 @@ export default function SentimentChart({ ticker, hours }: Props) {
     </div>
   )
 
-  if (error || !data.length) return (
+  if (error || !data?.dataPoints.length) return (
     <div style={CARD}>
       <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c4c0d8', fontSize: 13 }}>
         {error ?? '데이터가 없습니다.'}
@@ -69,11 +69,12 @@ export default function SentimentChart({ ticker, hours }: Props) {
     </div>
   )
 
-  const avg = data.reduce((s, d) => s + d.avgSentiment, 0) / data.length
-  const max = Math.max(...data.map(d => d.avgSentiment))
-  const min = Math.min(...data.map(d => d.avgSentiment))
-  const trend = data.length >= 2
-    ? data[data.length - 1].avgSentiment - data[0].avgSentiment
+  const points = data!.dataPoints
+  const avg = points.reduce((s, d) => s + d.averageScore, 0) / points.length
+  const max = Math.max(...points.map(d => d.averageScore))
+  const min = Math.min(...points.map(d => d.averageScore))
+  const trend = points.length >= 2
+    ? points[points.length - 1].averageScore - points[0].averageScore
     : 0
   const trendColor = trend > 0 ? '#22c55e' : trend < 0 ? '#f43f5e' : '#8b8fa8'
 
@@ -102,7 +103,7 @@ export default function SentimentChart({ ticker, hours }: Props) {
       </div>
 
       <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <LineChart data={points} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="sentimentGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor={ACCENT} stopOpacity={0.15} />
@@ -111,7 +112,7 @@ export default function SentimentChart({ ticker, hours }: Props) {
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f1fa" vertical={false} />
           <XAxis
-            dataKey="timePeriod"
+            dataKey="timestamp"
             tick={{ fill: '#c4c0d8', fontSize: 10 }}
             axisLine={false} tickLine={false}
             interval="preserveStartEnd"
@@ -125,7 +126,7 @@ export default function SentimentChart({ ticker, hours }: Props) {
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={0} stroke="#ece9f5" strokeWidth={1.5} />
           <Line
-            type="monotone" dataKey="avgSentiment"
+            type="monotone" dataKey="averageScore"
             stroke={ACCENT} strokeWidth={2.5}
             dot={false} activeDot={{ r: 4, fill: ACCENT, strokeWidth: 0 }}
           />
