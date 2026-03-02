@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult, SentimentTimeSeries, Alert } from '@/types'
+import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult, SentimentTimeSeries, Alert, FundamentalData, EarningsHistory, PeerComparison } from '@/types'
 
 
 // 백엔드 API URL
@@ -277,4 +277,16 @@ export const technicalApi = {
       return response.data
     })
   },
+}
+
+// ===== 펀더멘털 분석 API =====
+export const fundamentalApi = {
+  getFundamental: (ticker: string): Promise<FundamentalData> =>
+    api.get(`/fundamental/${ticker}`).then(r => r.data),
+
+  getEarnings: (ticker: string): Promise<EarningsHistory> =>
+    api.get(`/fundamental/${ticker}/earnings`).then(r => r.data),
+
+  getPeers: (ticker: string): Promise<PeerComparison> =>
+    api.get(`/fundamental/${ticker}/peers`).then(r => r.data),
 }

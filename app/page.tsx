@@ -7,6 +7,8 @@ import SentimentDonutChart from '@/components/SentimentDonutChart'
 import NewsCard from '@/components/NewsCard'
 import NewsCardSkeleton from '@/components/NewsCardSkeleton'
 import TechnicalPanel from '@/components/TechnicalPanel'
+import FundamentalPanel from '@/components/FundamentalPanel'
+import PeerComparisonTable from '@/components/PeerComparisonTable'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 
@@ -267,6 +269,12 @@ export default function DashboardPage() {
             </div>
 
             <TechnicalPanel ticker={ticker} />
+
+            {/* 펀더멘털 분석 */}
+            <FundamentalPanel ticker={ticker} />
+
+            {/* 동종업계 비교 */}
+            <PeerComparisonTable ticker={ticker} />
           </div>
         )}
 

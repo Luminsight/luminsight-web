@@ -122,3 +122,54 @@ export interface Alert {
   isRead: boolean
   createdAt: string
 }
+// ===== 펀더멘털 분석 타입 =====
+
+export interface FundamentalData {
+  ticker: string
+  trailingPe: number | null
+  forwardPe: number | null
+  priceToBook: number | null
+  priceToSales: number | null
+  evToEbitda: number | null
+  marketCap: number | null
+  sector: string | null
+  industry: string | null
+  revenueGrowth: number | null
+  earningsGrowth: number | null
+  operatingMargins: number | null
+  profitMargins: number | null
+  trailingEps: number | null
+  forwardEps: number | null
+  nextEarningsDate: string | null
+  updatedAt: string
+}
+
+export interface EarningsQuarter {
+  earningsDate: string
+  epsEstimate: number | null
+  epsActual: number | null
+  surprisePct: number | null
+  beat: boolean | null
+}
+
+export interface EarningsHistory {
+  ticker: string
+  quarters: EarningsQuarter[]
+  nextEarningsDate: string | null
+}
+
+export interface SectorAverage {
+  trailingPe: number | null
+  priceToBook: number | null
+  revenueGrowth: number | null
+  operatingMargins: number | null
+  profitMargins: number | null
+}
+
+export interface PeerComparison {
+  ticker: string
+  sector: string | null
+  target: FundamentalData | null
+  peers: FundamentalData[]
+  sectorAverage: SectorAverage
+}
