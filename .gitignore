@@ -48,3 +48,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 투자 시뮬레이션 리포트 (커밋 제외)
+investor-simulation/
