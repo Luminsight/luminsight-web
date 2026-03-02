@@ -5,6 +5,7 @@ import type { News, NewsSummary } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
 import NewsCard from '@/components/NewsCard'
+import NewsCardSkeleton from '@/components/NewsCardSkeleton'
 import TechnicalPanel from '@/components/TechnicalPanel'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
@@ -281,10 +282,10 @@ export default function DashboardPage() {
 
         {/* ── 뉴스 목록 ─────────────────────────────── */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-t-transparent"
-              style={{ borderColor: '#8b7fd4', borderTopColor: 'transparent' }} />
-            <p className="text-sm" style={{ color: '#9e9ab8' }}>뉴스를 불러오는 중...</p>
+          <div className="grid gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <NewsCardSkeleton key={i} />
+            ))}
           </div>
         ) : filteredNews.length > 0 ? (
           <div className="grid gap-3">

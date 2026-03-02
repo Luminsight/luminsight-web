@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { alertApi } from '@/lib/api'
 
 const Icons = {
   dashboard: (
@@ -52,7 +53,7 @@ const Icons = {
 const mainMenu = [
   { icon: Icons.dashboard, label: '대시보드',  href: '/' },
   { icon: Icons.compare,   label: '종목 비교',  href: '/compare' },
-  { icon: Icons.alert,     label: '알림',       href: '/alerts', badge: 3 },
+  { icon: Icons.alert,     label: '알림',       href: '/alerts' },
 ]
 
 const preferenceMenu = [
@@ -101,6 +102,13 @@ function NavItem({
 export default function Sidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    alertApi.getAlerts(undefined, true)
+      .then(alerts => setUnreadCount(alerts.length))
+      .catch(() => setUnreadCount(0))
+  }, [])
 
   return (
     <>
@@ -153,7 +161,10 @@ export default function Sidebar() {
           {mainMenu.map(item => (
             <NavItem
               key={item.href}
-              item={item}
+              item={{
+                ...item,
+                badge: item.href === '/alerts' && unreadCount > 0 ? unreadCount : undefined
+              }}
               isActive={pathname === item.href}
               onClose={() => setIsOpen(false)}
             />

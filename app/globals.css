@@ -100,3 +100,15 @@ body {
 * { scrollbar-width: thin; scrollbar-color: #d4d0e8 var(--bg); }
 
 ::selection { background: rgba(139,127,212,0.18); color: var(--text-primary); }
+
+/* ── 스켈레톤 로딩 ──────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-pulse {
+  background: linear-gradient(90deg, #ede9f8 25%, #f5f3fc 50%, #ede9f8 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}

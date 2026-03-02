@@ -82,9 +82,24 @@ export default function NewsCard({ news, globalIsKorean }: Props) {
           <p style={{ fontSize: 13, color: '#5e5a78', lineHeight: 1.65, margin: 0 }}>{reason}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(139,127,212,0.08)' }}>
-          <span style={{ fontSize: 12, color: '#c4c0d8', display: 'flex', alignItems: 'center', gap: 5 }}>
-            🕒 {fmtDate(news.publishedAt)}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: '#c4c0d8', display: 'flex', alignItems: 'center', gap: 5 }}>
+              🕒 {fmtDate(news.publishedAt)}
+            </span>
+            {news.source && (
+              <span style={{
+                fontSize: 10,
+                padding: '2px 7px',
+                borderRadius: 6,
+                background: '#f0eefb',
+                color: '#9e9ab8',
+                border: '1px solid #e0dbf5',
+                fontWeight: 500,
+              }}>
+                {news.source}
+              </span>
+            )}
+          </div>
           <a href={news.url} target="_blank" rel="noopener noreferrer"
             style={{ fontSize: 12, fontWeight: 600, color: '#8b7fd4', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
             원문 보기

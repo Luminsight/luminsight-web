@@ -1,3 +1,5 @@
+// [DEPRECATED] TechnicalPanel.tsx에 통합됨. 향후 삭제 예정.
+
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
