@@ -113,6 +113,19 @@ export interface SignalScoreResult {
   analyzedAt: string
 }
 
+export type InvestOpinion = 'BUY' | 'HOLD' | 'SELL'
+
+export interface TradingSignal {
+  ticker: string
+  date: string
+  signal: InvestOpinion
+  reason: string
+  confidence: number
+  currentPrice: number | null
+  sentimentScore: number | null
+  strategyName: string | null
+}
+
 export interface Alert {
   id: number
   ticker: string

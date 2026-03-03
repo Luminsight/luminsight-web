@@ -5,9 +5,9 @@ import {
   ResponsiveContainer, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ReferenceArea, ComposedChart, Area, Bar, Cell,
 } from 'recharts'
-import { technicalApi, DEFAULT_WEIGHTS } from '@/lib/api'
+import { technicalApi, tradingApi, DEFAULT_WEIGHTS } from '@/lib/api'
 import type { SignalWeights } from '@/lib/api'
-import type { TechnicalIndicatorData, SignalScoreResult, ComponentScore, RsiSignal, MacdCross } from '@/types'
+import type { TechnicalIndicatorData, SignalScoreResult, ComponentScore, RsiSignal, MacdCross, TradingSignal } from '@/types'
 
 interface Props { ticker: string }
 type Period = 7 | 30 | 60 | 90
@@ -305,10 +305,11 @@ function StatusBadge({ color, children }: { color: string; children: React.React
 // ── 메인 컴포넌트 ─────────────────────────────────────────────
 
 export default function TechnicalPanel({ ticker }: Props) {
-  const [techData, setTechData]     = useState<TechnicalIndicatorData | null>(null)
-  const [signalData, setSignalData] = useState<SignalScoreResult | null>(null)
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState<string | null>(null)
+  const [techData, setTechData]         = useState<TechnicalIndicatorData | null>(null)
+  const [signalData, setSignalData]     = useState<SignalScoreResult | null>(null)
+  const [tradingSignal, setTradingSignal] = useState<TradingSignal | null>(null)
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState<string | null>(null)
   const [period, setPeriod]         = useState<Period>(30)
   const [showWeights, setShowWeights] = useState(false)
   const [showDetail, setShowDetail]   = useState(false)
@@ -339,6 +340,8 @@ export default function TechnicalPanel({ ticker }: Props) {
       ])
       setTechData(tech)
       setSignalData(signal)
+      // 매매 신호는 독립적으로 조회 (실패해도 나머지 표시)
+      tradingApi.getSignal(ticker).then(setTradingSignal).catch(() => setTradingSignal(null))
     } catch {
       setError('데이터를 불러오지 못했습니다.')
     } finally {
@@ -528,6 +531,55 @@ export default function TechnicalPanel({ ticker }: Props) {
 
       {!loading && !error && techData && signalData && (
         <>
+          {/* ── BUY/HOLD/SELL 투자의견 카드 ── */}
+          {tradingSignal && (() => {
+            const op = tradingSignal.signal
+            const cfg = {
+              BUY:  { bg: '#dcfce7', border: '#86efac', color: '#16a34a', label: '매수 (BUY)',  icon: '📈' },
+              HOLD: { bg: '#fef9c3', border: '#fde047', color: '#ca8a04', label: '보유 (HOLD)', icon: '⏸️' },
+              SELL: { bg: '#fee2e2', border: '#fca5a5', color: '#dc2626', label: '매도 (SELL)', icon: '📉' },
+            }[op]
+            const confPct = Math.round((tradingSignal.confidence ?? 0) * 100)
+            return (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+                background: cfg.bg, border: `1.5px solid ${cfg.border}`,
+                borderRadius: 14, padding: '12px 16px', marginBottom: 16,
+              }}>
+                {/* 의견 배지 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 130 }}>
+                  <span style={{ fontSize: 22 }}>{cfg.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: cfg.color, lineHeight: 1.1 }}>
+                      {cfg.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: cfg.color, opacity: 0.8, marginTop: 1 }}>
+                      신뢰도 {confPct}%
+                    </div>
+                  </div>
+                </div>
+                {/* 신뢰도 바 */}
+                <div style={{ flex: 1, minWidth: 100 }}>
+                  <div style={{ height: 6, borderRadius: 4, background: '#ffffff80', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 4, background: cfg.color,
+                      width: `${confPct}%`, transition: 'width 0.6s ease',
+                    }} />
+                  </div>
+                </div>
+                {/* 근거 */}
+                {tradingSignal.reason && (
+                  <div style={{ flex: 2, minWidth: 160, fontSize: 12, color: cfg.color, lineHeight: 1.5 }}>
+                    💬 {tradingSignal.reason}
+                  </div>
+                )}
+                <div style={{ fontSize: 10, color: cfg.color, opacity: 0.6, whiteSpace: 'nowrap' }}>
+                  ⚠️ 참고용 / 투자 조언 아님
+                </div>
+              </div>
+            )
+          })()}
+
           {/* ── 종합 점수 + 신호 카드 ── */}
           <div className="flex gap-5 mb-2 flex-wrap items-center">
 

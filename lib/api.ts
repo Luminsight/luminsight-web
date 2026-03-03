@@ -212,6 +212,15 @@ export const alertApi = {
 }
 
 // ── 종목 API ──────────────────────────────────────────────────
+// ── 매매 신호 API ─────────────────────────────────────────────
+export const tradingApi = {
+  getSignal: async (ticker: string) => {
+    const res = await api.get(`/trading/signals/${ticker.toUpperCase()}`)
+    if (!res.data.success) throw new Error('No signal available')
+    return res.data.signal as import('@/types').TradingSignal
+  },
+}
+
 export const stockApi = {
   // 지원 종목 목록 (추후 백엔드 API 연동 예정)
   getSupportedTickers: async (): Promise<string[]> => {
