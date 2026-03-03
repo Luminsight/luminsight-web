@@ -426,6 +426,15 @@ export default function TechnicalPanel({ ticker }: Props) {
   const isCustom = JSON.stringify(weights) !== JSON.stringify(DEFAULT_WEIGHTS)
   const scoreCol = signalData ? scoreColor(signalData.score) : '#8b7fd4'
 
+  // ── 주가 + 등락률 계산 (priceData 마지막 2개 사용) ──────────
+  const latestPrice  = techData?.priceData?.at(-1)
+  const prevPrice    = techData?.priceData?.at(-2)
+  const changePct    = latestPrice && prevPrice && prevPrice.close > 0
+    ? ((latestPrice.close - prevPrice.close) / prevPrice.close) * 100
+    : null
+  const priceUp      = changePct !== null && changePct >= 0
+  const priceColor   = changePct === null ? '#9e9ab8' : priceUp ? '#16a34a' : '#ef4444'
+
   return (
     <div style={CARD}>
 
@@ -444,6 +453,29 @@ export default function TechnicalPanel({ ticker }: Props) {
               background: '#f0eefb', padding: '2px 10px', borderRadius: 8,
               border: '1px solid #d4cff2',
             }}>커스텀</span>
+          )}
+          {/* ── 주가 + 등락률 배지 ── */}
+          {latestPrice && (
+            <div className="flex items-center gap-1.5" style={{ marginLeft: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#18162a', letterSpacing: '-0.3px' }}>
+                ${latestPrice.close.toFixed(2)}
+              </span>
+              {changePct !== null && (
+                <span style={{
+                  fontSize: 12, fontWeight: 700, color: priceColor,
+                  background: priceUp ? '#dcfce7' : '#fee2e2',
+                  padding: '1px 7px', borderRadius: 6,
+                }}>
+                  {priceUp ? '▲' : '▼'} {Math.abs(changePct).toFixed(2)}%
+                </span>
+              )}
+              <span style={{
+                fontSize: 10, color: '#9e9ab8',
+                background: '#f5f4fa', padding: '1px 6px', borderRadius: 5,
+              }}>
+                📅 종가
+              </span>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
