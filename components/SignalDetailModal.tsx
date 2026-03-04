@@ -1,0 +1,230 @@
+'use client'
+
+import type { TradingSignal, SignalBreakdown, ContributingNews } from '@/types'
+
+interface Props {
+  signal: TradingSignal
+  onClose: () => void
+}
+
+// ── 색상 헬퍼 ─────────────────────────────────────────────────
+const scoreColor = (score: number) =>
+  score > 0.3 ? '#16a34a' : score > 0 ? '#22c55e' : score > -0.3 ? '#f97316' : '#ef4444'
+
+const sentimentColor = (label: string) =>
+  label === 'POSITIVE' ? '#22c55e' : label === 'NEGATIVE' ? '#ef4444' : '#8b7fd4'
+
+const sentimentLabel = (label: string) =>
+  label === 'POSITIVE' ? '긍정' : label === 'NEGATIVE' ? '부정' : '중립'
+
+const signalConfig = {
+  BUY:  { label: '매수',  bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', emoji: '🟢' },
+  SELL: { label: '매도',  bg: '#fef2f2', color: '#ef4444', border: '#fecaca', emoji: '🔴' },
+  HOLD: { label: '보유',  bg: '#f5f3ff', color: '#8b7fd4', border: '#ddd6fe', emoji: '⚪️' },
+}
+
+// ── 4축 기여도 바 ──────────────────────────────────────────────
+function BreakdownBar({
+  label, weight, score, contrib, detail
+}: {
+  label: string
+  weight: string
+  score: number
+  contrib: number
+  detail?: string
+}) {
+  const pct = ((score + 1) / 2) * 100
+  const color = scoreColor(score)
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2">
+          <span style={{ color: '#18162a', fontWeight: 600 }}>{label}</span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs"
+            style={{ background: '#f0eefb', color: '#8b7fd4' }}>{weight}</span>
+        </div>
+        <span className="font-mono font-bold text-xs" style={{ color }}>
+          {contrib > 0 ? `+${contrib.toFixed(3)}` : contrib.toFixed(3)}
+        </span>
+      </div>
+      <div className="relative h-2 rounded-full" style={{ background: '#f0eefb', overflow: 'visible' }}>
+        {/* 중앙선 */}
+        <div className="absolute top-0 bottom-0 w-px" style={{ left: '50%', background: '#c4c0d8' }} />
+        {/* 점수 바 */}
+        <div className="absolute top-0 bottom-0 rounded-full transition-all duration-500" style={{
+          left: pct >= 50 ? '50%' : `${pct}%`,
+          width: `${Math.abs(pct - 50)}%`,
+          background: color,
+          opacity: 0.5,
+        }} />
+        {/* 점수 도트 */}
+        <div className="absolute z-10" style={{
+          left: `${pct}%`,
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 12, height: 12,
+          borderRadius: '50%',
+          background: color,
+          border: '2px solid #fff',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+        }} />
+      </div>
+      {detail && (
+        <p className="text-xs" style={{ color: '#9e9ab8' }}>{detail}</p>
+      )}
+      <div className="flex justify-between text-xs" style={{ color: '#c4c0d8' }}>
+        <span>◀ 약세</span>
+        <span>강세 ▶</span>
+      </div>
+    </div>
+  )
+}
+
+// ── 기여 뉴스 카드 ─────────────────────────────────────────────
+function NewsCard({ news }: { news: ContributingNews }) {
+  const color = sentimentColor(news.sentimentLabel)
+  const label = sentimentLabel(news.sentimentLabel)
+  const score = news.sentimentScore
+  const date = new Date(news.publishedAt).toLocaleDateString('ko-KR', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  })
+
+  return (
+    <a href={news.url} target="_blank" rel="noopener noreferrer"
+      className="block rounded-xl p-3 transition-all hover:shadow-md"
+      style={{ background: '#faf9ff', border: '1px solid #ede9f8', textDecoration: 'none' }}>
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{ background: `${color}15`, color, border: `1px solid ${color}30` }}>
+          {label} {score > 0 ? `+${score.toFixed(2)}` : score.toFixed(2)}
+        </span>
+        <span className="text-xs shrink-0" style={{ color: '#c4c0d8' }}>{news.source}</span>
+      </div>
+      <p className="text-sm font-medium leading-snug mb-1" style={{ color: '#18162a' }}>
+        {news.titleKo || news.title}
+      </p>
+      <p className="text-xs" style={{ color: '#9e9ab8' }}>{date} · 원문 보기 →</p>
+    </a>
+  )
+}
+
+// ── 메인 모달 ──────────────────────────────────────────────────
+export default function SignalDetailModal({ signal, onClose }: Props) {
+  const cfg = signalConfig[signal.signal] ?? signalConfig.HOLD
+  const bd = signal.breakdown
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(24,22,42,0.45)', backdropFilter: 'blur(4px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl"
+        style={{ background: '#fff', boxShadow: '0 8px 40px rgba(139,127,212,0.20)' }}
+      >
+        {/* 헤더 */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
+          style={{ background: '#fff', borderBottom: '1px solid #f0eefb' }}>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{cfg.emoji}</span>
+            <div>
+              <h2 className="font-bold text-base" style={{ color: '#18162a' }}>
+                {signal.ticker} — AI 신호 근거
+              </h2>
+              <p className="text-xs" style={{ color: '#9e9ab8' }}>{signal.date}</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors"
+            style={{ background: '#f0eefb', color: '#8b7fd4' }}>✕</button>
+        </div>
+
+        <div className="px-6 py-4 space-y-6">
+
+          {/* 신호 배지 + 신뢰도 */}
+          <div className="flex items-center gap-3">
+            <span className="px-4 py-2 rounded-xl text-sm font-bold"
+              style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+              {cfg.label} 신호
+            </span>
+            <span className="text-sm" style={{ color: '#9e9ab8' }}>
+              신뢰도 {(signal.confidence * 100).toFixed(0)}%
+            </span>
+            {bd?.earningsRisk && (
+              <span className="px-2 py-1 rounded-lg text-xs font-medium"
+                style={{ background: '#fff7ed', color: '#f97316', border: '1px solid #fed7aa' }}>
+                ⚠️ 어닝 임박
+              </span>
+            )}
+          </div>
+
+          {/* 신호 이유 */}
+          <div className="rounded-xl p-4" style={{ background: '#faf9ff', border: '1px solid #ede9f8' }}>
+            <p className="text-xs font-semibold mb-1.5" style={{ color: '#8b7fd4' }}>📝 AI 분석 요약</p>
+            <p className="text-sm leading-relaxed" style={{ color: '#18162a' }}>{signal.reason}</p>
+          </div>
+
+          {/* 4축 기여도 */}
+          {bd && (
+            <div>
+              <p className="text-xs font-semibold mb-3" style={{ color: '#5e5a78' }}>
+                📊 4축 종합 분석 (종합 점수: {signal.combinedScore != null
+                  ? (signal.combinedScore > 0 ? `+${signal.combinedScore.toFixed(3)}` : signal.combinedScore.toFixed(3))
+                  : '-'})
+              </p>
+              <div className="space-y-4">
+                <BreakdownBar
+                  label="기술적 분석"
+                  weight="40%"
+                  score={bd.technicalScore}
+                  contrib={bd.technicalContrib}
+                  detail={bd.technicalDetail || undefined}
+                />
+                <BreakdownBar
+                  label="뉴스 감성"
+                  weight="30%"
+                  score={bd.sentimentScore}
+                  contrib={bd.sentimentContrib}
+                />
+                <BreakdownBar
+                  label="펀더멘털"
+                  weight="20%"
+                  score={bd.fundamentalScore}
+                  contrib={bd.fundamentalContrib}
+                  detail={bd.fundamentalDetail || undefined}
+                />
+                <BreakdownBar
+                  label="시장 컨텍스트"
+                  weight="10%"
+                  score={bd.marketScore}
+                  contrib={bd.marketContrib}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 기여 뉴스 Top 3 */}
+          {signal.contributingNews && signal.contributingNews.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold mb-3" style={{ color: '#5e5a78' }}>
+                📰 신호에 기여한 뉴스 Top {signal.contributingNews.length}
+              </p>
+              <div className="space-y-2">
+                {signal.contributingNews.map((news, i) => (
+                  <NewsCard key={i} news={news} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 면책 조항 */}
+          <p className="text-xs pb-2" style={{ color: '#c4c0d8', borderTop: '1px solid #f0eefb', paddingTop: 12 }}>
+            ⚠️ 본 분석은 AI 참고 자료이며 투자 권유가 아닙니다. 투자 결정은 본인 판단에 따르시기 바랍니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}

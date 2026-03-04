@@ -8,6 +8,7 @@ import {
 import { technicalApi, tradingApi, DEFAULT_WEIGHTS } from '@/lib/api'
 import type { SignalWeights } from '@/lib/api'
 import type { TechnicalIndicatorData, SignalScoreResult, ComponentScore, RsiSignal, MacdCross, TradingSignal } from '@/types'
+import SignalDetailModal from '@/components/SignalDetailModal'
 
 interface Props { ticker: string }
 type Period = 7 | 30 | 60 | 90
@@ -311,8 +312,9 @@ export default function TechnicalPanel({ ticker }: Props) {
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState<string | null>(null)
   const [period, setPeriod]         = useState<Period>(30)
-  const [showWeights, setShowWeights] = useState(false)
-  const [showDetail, setShowDetail]   = useState(false)
+  const [showWeights, setShowWeights]         = useState(false)
+  const [showDetail, setShowDetail]           = useState(false)
+  const [showSignalDetail, setShowSignalDetail] = useState(false)
 
   const [inds, setInds] = useState([
     { id: 'price',     label: '주가',       color: '#8b7fd4', on: true },
@@ -540,6 +542,9 @@ export default function TechnicalPanel({ ticker }: Props) {
               SELL: { bg: '#fee2e2', border: '#fca5a5', color: '#dc2626', label: '매도 (SELL)', icon: '📉' },
             }[op]
             const confPct = Math.round((tradingSignal.confidence ?? 0) * 100)
+            const signalDate = tradingSignal.date
+              ? new Date(tradingSignal.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+              : null
             return (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
@@ -556,6 +561,11 @@ export default function TechnicalPanel({ ticker }: Props) {
                     <div style={{ fontSize: 11, color: cfg.color, opacity: 0.8, marginTop: 1 }}>
                       신뢰도 {confPct}%
                     </div>
+                    {signalDate && (
+                      <div style={{ fontSize: 10, color: cfg.color, opacity: 0.6, marginTop: 2 }}>
+                        📅 {signalDate} 종가 기준
+                      </div>
+                    )}
                   </div>
                 </div>
                 {/* 신뢰도 바 */}
@@ -573,8 +583,19 @@ export default function TechnicalPanel({ ticker }: Props) {
                     💬 {tradingSignal.reason}
                   </div>
                 )}
-                <div style={{ fontSize: 10, color: cfg.color, opacity: 0.6, whiteSpace: 'nowrap' }}>
-                  ⚠️ 참고용 / 투자 조언 아님
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <button
+                    onClick={() => setShowSignalDetail(true)}
+                    style={{
+                      fontSize: 11, fontWeight: 700, color: '#fff',
+                      background: cfg.color, border: 'none', borderRadius: 8,
+                      padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>
+                    근거 보기 →
+                  </button>
+                  <div style={{ fontSize: 10, color: cfg.color, opacity: 0.6, whiteSpace: 'nowrap' }}>
+                    ⚠️ 참고용 / 투자 조언 아님
+                  </div>
                 </div>
               </div>
             )
@@ -824,6 +845,14 @@ export default function TechnicalPanel({ ticker }: Props) {
             ⚠️ 참고용 지표이며 투자 조언이 아닙니다.
           </p>
         </>
+      )}
+
+      {/* ── AI 신호 상세 모달 ── */}
+      {showSignalDetail && tradingSignal && (
+        <SignalDetailModal
+          signal={tradingSignal}
+          onClose={() => setShowSignalDetail(false)}
+        />
       )}
     </div>
   )

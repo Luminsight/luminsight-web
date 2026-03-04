@@ -115,6 +115,30 @@ export interface SignalScoreResult {
 
 export type InvestOpinion = 'BUY' | 'HOLD' | 'SELL'
 
+export interface SignalBreakdown {
+  technicalScore: number
+  technicalContrib: number
+  sentimentScore: number
+  sentimentContrib: number
+  fundamentalScore: number
+  fundamentalContrib: number
+  marketScore: number
+  marketContrib: number
+  earningsRisk: boolean
+  technicalDetail: string
+  fundamentalDetail: string
+}
+
+export interface ContributingNews {
+  title: string
+  titleKo: string
+  url: string
+  sentimentScore: number
+  sentimentLabel: string
+  publishedAt: string
+  source: string
+}
+
 export interface TradingSignal {
   ticker: string
   date: string
@@ -123,7 +147,10 @@ export interface TradingSignal {
   confidence: number
   currentPrice: number | null
   sentimentScore: number | null
+  combinedScore: number | null
   strategyName: string | null
+  breakdown: SignalBreakdown | null
+  contributingNews: ContributingNews[]
 }
 
 export interface Alert {
