@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult, SentimentTimeSeries, Alert, FundamentalData, EarningsHistory, PeerComparison } from '@/types'
+import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult, SentimentTimeSeries, Alert, FundamentalData, EarningsHistory, PeerComparison, JournalEntry, CreateJournalRequest, UpdateJournalRequest, PositionSummary } from '@/types'
 
 
 // 백엔드 API URL
@@ -285,6 +285,56 @@ export const technicalApi = {
       cache.set(cacheKey, response.data, TTL.SIGNAL_SCORE)
       return response.data
     })
+  },
+}
+
+// ===== 투자 일지 API =====
+export const journalApi = {
+  /** 목록 조회 (ticker, from, to 선택) */
+  getJournals: async (params?: { ticker?: string; from?: string; to?: string }): Promise<JournalEntry[]> => {
+    const response = await api.get('/journal', { params })
+    return response.data
+  },
+
+  /** 단일 항목 조회 */
+  getJournal: async (id: number): Promise<JournalEntry> => {
+    const response = await api.get(`/journal/${id}`)
+    return response.data
+  },
+
+  /** 새 기록 추가 */
+  createJournal: async (request: CreateJournalRequest): Promise<JournalEntry> => {
+    const response = await api.post('/journal', request)
+    return response.data
+  },
+
+  /** 수정 */
+  updateJournal: async (id: number, request: UpdateJournalRequest): Promise<JournalEntry> => {
+    const response = await api.put(`/journal/${id}`, request)
+    return response.data
+  },
+
+  /** 삭제 */
+  deleteJournal: async (id: number): Promise<void> => {
+    await api.delete(`/journal/${id}`)
+  },
+
+  /** 전체 포트폴리오 요약 */
+  getPortfolioSummary: async (): Promise<PositionSummary[]> => {
+    const response = await api.get('/journal/portfolio')
+    return response.data
+  },
+
+  /** 티커별 포지션 요약 */
+  getPositionSummary: async (ticker: string): Promise<PositionSummary> => {
+    const response = await api.get(`/journal/position/${ticker.toUpperCase()}`)
+    return response.data
+  },
+
+  /** AI 역행 매매 기록 */
+  getContraryTrades: async (): Promise<JournalEntry[]> => {
+    const response = await api.get('/journal/contrary')
+    return response.data
   },
 }
 

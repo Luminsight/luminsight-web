@@ -206,6 +206,66 @@ export interface SectorAverage {
   profitMargins: number | null
 }
 
+// ===== 투자 일지 타입 =====
+
+export type TradeType = 'BUY' | 'SELL'
+
+export interface JournalEntry {
+  id: number
+  ticker: string
+  tradeType: TradeType
+  tradeDate: string          // 'YYYY-MM-DD'
+  price: number
+  quantity: number
+  totalAmount: number
+  memo: string | null
+  aiSignal: InvestOpinion | null
+  aiConfidence: number | null
+  realizedPnl: number | null
+  /** AI 신호 방향과 실제 매매 일치 여부 */
+  signalMatched: boolean | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateJournalRequest {
+  ticker: string
+  tradeType: TradeType
+  tradeDate: string
+  price: number
+  quantity: number
+  memo?: string
+  aiSignal?: InvestOpinion
+  aiConfidence?: number
+  realizedPnl?: number
+}
+
+export interface UpdateJournalRequest {
+  tradeDate?: string
+  price?: number
+  quantity?: number
+  memo?: string
+  aiSignal?: InvestOpinion
+  aiConfidence?: number
+  realizedPnl?: number
+}
+
+export interface PositionSummary {
+  ticker: string
+  /** 순 보유 수량 (매수 - 매도) */
+  netQuantity: number
+  /** 평균 매수 단가 */
+  avgBuyPrice: number
+  totalBuyAmount: number
+  totalSellAmount: number
+  realizedPnl: number | null
+  tradeCount: number
+  buyCount: number
+  sellCount: number
+  /** AI 신호 추천 방향과 실제 매매 일치율 (0~1) */
+  signalMatchRate: number | null
+}
+
 export interface PeerComparison {
   ticker: string
   sector: string | null
