@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { alertApi } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
 
 const Icons = {
   dashboard: (
@@ -55,6 +56,13 @@ const Icons = {
   star: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  ),
+  logout: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
   ),
 }
@@ -111,14 +119,24 @@ function NavItem({
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const { user, isAuthenticated, isLoading, login, logout } = useAuth()
 
   useEffect(() => {
+    if (!isAuthenticated) return
     alertApi.getAlerts(undefined, true)
       .then(alerts => setUnreadCount(alerts.length))
       .catch(() => setUnreadCount(0))
-  }, [])
+  }, [isAuthenticated])
+
+  // 비로그인 시 로그인 페이지로 리다이렉트 (login 페이지 자체는 제외)
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && pathname !== '/login' && !pathname.startsWith('/auth')) {
+      router.replace('/login')
+    }
+  }, [isLoading, isAuthenticated, pathname, router])
 
   return (
     <>
@@ -207,7 +225,7 @@ export default function Sidebar() {
               <span className="text-xs font-semibold text-white">Pro 플랜 업그레이드</span>
             </div>
             <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.75)' }}>
-              실시간 알림 & 무제한 종목 분석
+              실시간 알림 &amp; 무제한 종목 분석
             </p>
             <button
               className="w-full py-1.5 rounded-xl text-xs font-bold transition-all"
@@ -218,20 +236,56 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* 유저 */}
+        {/* 유저 프로필 */}
         <div className="px-4 py-4" style={{ borderTop: '1px solid #f3f1fa' }}>
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl" style={{ background: '#f8f7fd' }}>
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-              style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-3 px-2 py-2 rounded-xl" style={{ background: '#f8f7fd' }}>
+              {/* 아바타 */}
+              {user.pictureUrl ? (
+                <img
+                  src={user.pictureUrl}
+                  alt={user.name}
+                  className="w-8 h-8 rounded-full shrink-0 object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: '#18162a' }}>{user.name}</p>
+                <p className="text-xs truncate" style={{ color: '#9e9ab8' }}>{user.email}</p>
+              </div>
+              {/* 로그아웃 버튼 */}
+              <button
+                onClick={logout}
+                title="로그아웃"
+                className="shrink-0 p-1.5 rounded-lg transition-colors"
+                style={{ color: '#b0accc' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#e05c5c')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#b0accc')}
+              >
+                {Icons.logout}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={login}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{ background: '#f0eefb', color: '#8b7fd4' }}
             >
-              U
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: '#18162a' }}>사용자</p>
-              <p className="text-xs truncate" style={{ color: '#9e9ab8' }}>user@example.com</p>
-            </div>
-          </div>
+              <svg width="16" height="16" viewBox="0 0 48 48">
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v8.51h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.14z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.49-1.47-.76-3.04-.76-4.59s.27-3.12.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              </svg>
+              Google로 로그인
+            </button>
+          )}
         </div>
       </aside>
     </>
