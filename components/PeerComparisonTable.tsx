@@ -51,7 +51,7 @@ function CellValue({
   let color = '#18162a'
   if (value != null && sectorAvg != null) {
     const better = higherIsBetter ? value > sectorAvg : value < sectorAvg
-    color = better ? '#16a34a' : '#ef4444'
+    color = better ? '#ef4444' : '#2563eb'
   }
   return (
     <span style={{
@@ -160,8 +160,8 @@ export default function PeerComparisonTable({ ticker }: Props) {
             </table>
 
             <p style={{ fontSize: 11, color: '#c4c0d8', marginTop: 12, paddingTop: 8, borderTop: '1px solid #f5f3fd' }}>
-              * <span style={{ color: '#16a34a', fontWeight: 600 }}>초록</span> = 섹터 대비 유리&nbsp;&nbsp;
-              <span style={{ color: '#ef4444', fontWeight: 600 }}>빨강</span> = 불리&nbsp;&nbsp;
+              * <span style={{ color: '#ef4444', fontWeight: 600 }}>빨강</span> = 섹터 대비 유리&nbsp;&nbsp;
+              <span style={{ color: '#2563eb', fontWeight: 600 }}>파랑</span> = 불리&nbsp;&nbsp;
               선택 종목은 <span style={{ background: '#f5f3fd', padding: '1px 5px', borderRadius: 4, color: '#8b7fd4', fontWeight: 700 }}>강조</span> 표시
             </p>
           </div>

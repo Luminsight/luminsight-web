@@ -9,7 +9,7 @@ export interface News {
   sentimentLabel: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
   sentimentReasoning: string
   sentimentReasoningKo: string | null
-  confidence: number
+  sentimentConfidence: number | null
   source: string
   publishedAt: string
   url: string

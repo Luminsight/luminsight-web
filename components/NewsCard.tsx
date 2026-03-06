@@ -49,7 +49,7 @@ export default function NewsCard({ news, globalIsKorean }: Props) {
             {news.sentimentScore >= 0 ? '+' : ''}{news.sentimentScore.toFixed(2)}
           </span>
           <span style={{ fontSize: 11, color: '#9e9ab8' }}>
-            신뢰도 <b style={{ color: '#5e5a78' }}>{(news.confidence * 100).toFixed(0)}%</b>
+            신뢰도 <b style={{ color: '#5e5a78' }}>{news.sentimentConfidence != null ? `${(news.sentimentConfidence * 100).toFixed(0)}%` : '-'}</b>
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

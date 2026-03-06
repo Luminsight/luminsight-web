@@ -56,7 +56,7 @@ function MetricRow({
 
 function EarningsRow({ q, idx }: { q: EarningsHistory['quarters'][number]; idx: number }) {
   const beat = q.beat
-  const surpColor = beat === true ? '#16a34a' : beat === false ? '#ef4444' : '#9e9ab8'
+  const surpColor = beat === true ? '#ef4444' : beat === false ? '#2563eb' : '#9e9ab8'
   const label = beat === true ? '✅ Beat' : beat === false ? '❌ Miss' : '-'
   return (
     <div style={{
@@ -156,11 +156,11 @@ export default function FundamentalPanel({ ticker }: Props) {
           {/* 성장성 & 수익성 */}
           <p style={{ fontSize: 11, fontWeight: 700, color: '#c4c0d8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 4px' }}>성장성 · 수익성</p>
           <MetricRow label="매출 성장률"     value={fmtPct(fundamental.revenueGrowth)}
-            valueColor={fundamental.revenueGrowth != null ? (fundamental.revenueGrowth > 0 ? '#16a34a' : '#ef4444') : undefined} />
+            valueColor={fundamental.revenueGrowth != null ? (fundamental.revenueGrowth > 0 ? '#ef4444' : '#2563eb') : undefined} />
           <MetricRow label="영업이익률"      value={fmtPct(fundamental.operatingMargins)}
-            valueColor={fundamental.operatingMargins != null ? (fundamental.operatingMargins > 0.15 ? '#16a34a' : '#9e9ab8') : undefined} />
+            valueColor={fundamental.operatingMargins != null ? (fundamental.operatingMargins > 0.15 ? '#ef4444' : '#9e9ab8') : undefined} />
           <MetricRow label="순이익률"        value={fmtPct(fundamental.profitMargins)}
-            valueColor={fundamental.profitMargins != null ? (fundamental.profitMargins > 0.10 ? '#16a34a' : '#9e9ab8') : undefined} />
+            valueColor={fundamental.profitMargins != null ? (fundamental.profitMargins > 0.10 ? '#ef4444' : '#9e9ab8') : undefined} />
           <MetricRow label="EPS (TTM)"       value={`$${fmt(fundamental.trailingEps)}`} />
           <MetricRow label="EPS (Forward)"   value={`$${fmt(fundamental.forwardEps)}`} />
 

@@ -414,7 +414,7 @@ export default function TechnicalPanel({ ticker }: Props) {
     if (!techData?.bollingerBands?.length) return null
     const l = techData.bollingerBands[techData.bollingerBands.length - 1]
     const posText  = l.percentB > 1 ? '상단 돌파 ⚠️' : l.percentB > 0.8 ? '상단 근접' : l.percentB < 0 ? '하단 돌파 🔔' : l.percentB < 0.2 ? '하단 근접' : '밴드 중간'
-    const posColor = l.percentB > 0.8 ? '#ef4444' : l.percentB < 0.2 ? '#16a34a' : '#7e7a98'
+    const posColor = l.percentB > 0.8 ? '#ef4444' : l.percentB < 0.2 ? '#2563eb' : '#7e7a98'
     return { value: `${(l.percentB * 100).toFixed(0)}%`, status: posText, color: posColor }
   }, [techData])
 
@@ -438,7 +438,7 @@ export default function TechnicalPanel({ ticker }: Props) {
     ? ((latestPrice.close - prevPrice.close) / prevPrice.close) * 100
     : null
   const priceUp      = changePct !== null && changePct >= 0
-  const priceColor   = changePct === null ? '#9e9ab8' : priceUp ? '#16a34a' : '#ef4444'
+  const priceColor   = changePct === null ? '#9e9ab8' : priceUp ? '#ef4444' : '#2563eb'
 
   return (
     <div style={CARD}>
@@ -692,7 +692,7 @@ export default function TechnicalPanel({ ticker }: Props) {
                     if (!ind('bollinger') || !techData.bollingerBands?.length) return null
                     const l = techData.bollingerBands[techData.bollingerBands.length - 1]
                     const posText  = l.percentB > 1 ? '상단 돌파 ⚠️' : l.percentB > 0.8 ? '상단 근접' : l.percentB < 0 ? '하단 돌파' : l.percentB < 0.2 ? '하단 근접' : '밴드 중간'
-                    const posColor = l.percentB > 0.8 ? '#ef4444' : l.percentB < 0.2 ? '#16a34a' : '#7e7a98'
+                    const posColor = l.percentB > 0.8 ? '#ef4444' : l.percentB < 0.2 ? '#2563eb' : '#7e7a98'
                     return <StatusBadge color={posColor}>{posText}</StatusBadge>
                   })()}
                 </div>
@@ -729,12 +729,12 @@ export default function TechnicalPanel({ ticker }: Props) {
                     <div className="flex items-center gap-4 mt-2 ml-1 flex-wrap" style={{ fontSize: 12 }}>
                       {l.sma20 != null && (
                         <span style={{ color: '#7e7a98' }}>SMA20 <b style={{ color: '#22c55e' }}>${l.sma20.toFixed(2)}</b>
-                          {price != null && <b style={{ color: price > l.sma20 ? '#16a34a' : '#ef4444' }}>{price > l.sma20 ? ' ↑' : ' ↓'}</b>}
+                          {price != null && <b style={{ color: price > l.sma20 ? '#ef4444' : '#2563eb' }}>{price > l.sma20 ? ' ↑' : ' ↓'}</b>}
                         </span>
                       )}
                       {l.sma50 != null && (
                         <span style={{ color: '#7e7a98' }}>SMA50 <b style={{ color: '#f97316' }}>${l.sma50.toFixed(2)}</b>
-                          {price != null && <b style={{ color: price > l.sma50 ? '#16a34a' : '#ef4444' }}>{price > l.sma50 ? ' ↑' : ' ↓'}</b>}
+                          {price != null && <b style={{ color: price > l.sma50 ? '#ef4444' : '#2563eb' }}>{price > l.sma50 ? ' ↑' : ' ↓'}</b>}
                         </span>
                       )}
                       {l.sma20 != null && l.sma50 != null && (
