@@ -240,6 +240,38 @@ export const alertApi = {
   markAsRead: async (alertId: number): Promise<void> => {
     await api.put(`/alerts/${alertId}/read`)
   },
+
+  markAllAsRead: async (ticker?: string): Promise<void> => {
+    const params = ticker ? { ticker } : {}
+    await api.put('/alerts/read-all', null, { params })
+  },
+
+  getUnreadCount: async (): Promise<number> => {
+    const response = await api.get('/alerts/count', { params: { unreadOnly: true } })
+    return response.data.count ?? 0
+  },
+}
+
+// ── 알림 규칙 API ─────────────────────────────────────────────
+export const alertRuleApi = {
+  getRules: async (ticker?: string): Promise<import('@/types').AlertRule[]> => {
+    const params = ticker ? { ticker } : {}
+    const response = await api.get('/alert-rules', { params })
+    return response.data
+  },
+
+  createRule: async (req: import('@/types').CreateAlertRuleRequest): Promise<import('@/types').AlertRule> => {
+    const response = await api.post('/alert-rules', req)
+    return response.data
+  },
+
+  toggleRule: async (ruleId: number, enabled: boolean): Promise<void> => {
+    await api.put(`/alert-rules/${ruleId}/toggle`, null, { params: { enabled } })
+  },
+
+  deleteRule: async (ruleId: number): Promise<void> => {
+    await api.delete(`/alert-rules/${ruleId}`)
+  },
 }
 
 // ── 종목 API ──────────────────────────────────────────────────

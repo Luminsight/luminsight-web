@@ -198,6 +198,34 @@ export interface Alert {
   isRead: boolean
   createdAt: string
 }
+
+export type AlertRuleType =
+  | 'SENTIMENT_SPIKE'
+  | 'SENTIMENT_POSITIVE'
+  | 'SENTIMENT_NEGATIVE'
+  | 'KEYWORD_DETECTED'
+  | 'NEWS_VOLUME_SPIKE'
+
+export interface AlertRule {
+  id: number
+  ticker: string
+  type: AlertRuleType
+  isEnabled: boolean
+  keywords: string[]
+  sentimentChangeThreshold: number
+  timeWindowHours: number
+  volumeThreshold: number
+  createdAt: string
+}
+
+export interface CreateAlertRuleRequest {
+  ticker: string
+  type: AlertRuleType
+  keywords?: string[]
+  sentimentChangeThreshold?: number
+  timeWindowHours?: number
+  volumeThreshold?: number
+}
 // ===== 펀더멘털 분석 타입 =====
 
 export interface FundamentalData {

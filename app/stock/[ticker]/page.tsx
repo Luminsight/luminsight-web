@@ -13,6 +13,7 @@ import NewsCardSkeleton from '@/components/NewsCardSkeleton'
 import TechnicalPanel from '@/components/TechnicalPanel'
 import FundamentalPanel from '@/components/FundamentalPanel'
 import PeerComparisonTable from '@/components/PeerComparisonTable'
+import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
@@ -49,7 +50,7 @@ const NEWS_PAGE_SIZE = 8
 export default function StockDetailPage() {
   const params  = useParams()
   const router  = useRouter()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
 
   const ticker = (params.ticker as string).toUpperCase()
 
@@ -462,6 +463,35 @@ export default function StockDetailPage() {
           onClose={() => setShowMemoModal(false)}
           onSaved={() => setShowMemoModal(false)}
         />
+      )}
+
+      {/* ── 비로그인 CTA 배너 (하단 고정) ─────────────────── */}
+      {!isAuthenticated && !isLoading && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3"
+          style={{
+            background: 'linear-gradient(135deg, #8b7fd4 0%, #6a5fc4 100%)',
+            boxShadow: '0 -4px 24px rgba(107,95,196,0.3)',
+          }}
+        >
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-white">
+                🔔 {ticker} 감성 변화 알림 받기
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                무료 가입하고 감성 급변 시 실시간 알림을 받아보세요.
+              </p>
+            </div>
+            <Link
+              href="/login"
+              className="shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+              style={{ background: '#ffffff', color: '#8b7fd4', whiteSpace: 'nowrap' }}
+            >
+              무료 가입
+            </Link>
+          </div>
+        </div>
       )}
     </div>
   )
