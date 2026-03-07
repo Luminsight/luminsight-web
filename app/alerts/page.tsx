@@ -1,294 +1,327 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import type { Alert } from '@/types'
 import { alertApi } from '@/lib/api'
 
+// ── 상수 ─────────────────────────────────────────────────────
+const CARD: React.CSSProperties = {
+  background: '#ffffff',
+  borderRadius: '18px',
+  padding: '24px',
+  boxShadow: '0 2px 12px rgba(139,127,212,0.09)',
+}
+
 type FilterTab = 'all' | 'unread' | 'high'
 
-// 상대 시간 포맷터 (예: "3분 전", "2시간 전")
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const secondsAgo = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-  if (secondsAgo < 60) return '방금 전'
-  if (secondsAgo < 3600) return `${Math.floor(secondsAgo / 60)}분 전`
-  if (secondsAgo < 86400) return `${Math.floor(secondsAgo / 3600)}시간 전`
-  if (secondsAgo < 604800) return `${Math.floor(secondsAgo / 86400)}일 전`
-  return date.toLocaleDateString('ko-KR')
+// ── 유틸 ─────────────────────────────────────────────────────
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return '방금 전'
+  if (mins < 60) return `${mins}분 전`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}시간 전`
+  if (hrs < 168) return `${Math.floor(hrs / 24)}일 전`
+  return new Date(dateStr).toLocaleDateString('ko-KR')
 }
 
-// alertType을 한국어로 변환
-function translateAlertType(alertType: string): string {
-  const typeMap: Record<string, string> = {
-    'RSI_OVERBOUGHT': 'RSI 과매수',
-    'RSI_OVERSOLD': 'RSI 과매도',
-    'MACD_CROSS': 'MACD 크로스',
-    'MACD_GOLDEN': 'MACD 골든크로스',
-    'MACD_DEAD': 'MACD 데드크로스',
-    'SENTIMENT_SPIKE': '감성 급등',
-    'SENTIMENT_CRASH': '감성 급락',
-    'PRICE_BREAKOUT': '가격 돌파',
-    'PRICE_BREAKDOWN': '가격 붕괴',
-    'BOLLINGER_BREAK_UPPER': '볼린저밴드 상단 돌파',
-    'BOLLINGER_BREAK_LOWER': '볼린저밴드 하단 돌파',
+function translateAlertType(type: string): string {
+  const map: Record<string, string> = {
+    RSI_OVERBOUGHT:          'RSI 과매수',
+    RSI_OVERSOLD:            'RSI 과매도',
+    MACD_CROSS:              'MACD 크로스',
+    MACD_GOLDEN:             'MACD 골든크로스',
+    MACD_DEAD:               'MACD 데드크로스',
+    SENTIMENT_SPIKE:         '감성 급등',
+    SENTIMENT_CRASH:         '감성 급락',
+    SENTIMENT_CHANGE:        '감성 변화',
+    KEYWORD_DETECTED:        '키워드 감지',
+    PRICE_BREAKOUT:          '가격 돌파',
+    PRICE_BREAKDOWN:         '가격 붕괴',
+    BOLLINGER_BREAK_UPPER:   '볼린저 상단 돌파',
+    BOLLINGER_BREAK_LOWER:   '볼린저 하단 이탈',
   }
-  return typeMap[alertType] || alertType
+  return map[type] ?? type
 }
 
-// Severity에 따른 왼쪽 바 색상
-function getColorByServerity(severity: string): string {
+function severityConfig(severity: string) {
   switch (severity) {
-    case 'HIGH':
-      return '#ef4444' // red-500
-    case 'MEDIUM':
-      return '#f97316' // orange-500
-    case 'LOW':
-      return '#22c55e' // green-500
-    default:
-      return '#94a3b8' // slate-400
+    case 'HIGH':   return { color: '#ef4444', bg: '#fff1f1', label: '높음', icon: '🔴' }
+    case 'MEDIUM': return { color: '#f97316', bg: '#fff7ed', label: '중간', icon: '🟡' }
+    case 'LOW':    return { color: '#22c55e', bg: '#f0fdf4', label: '낮음', icon: '🟢' }
+    default:       return { color: '#8b8fa8', bg: '#f3f4f6', label: '정보', icon: '⚪' }
   }
 }
 
-// 스켈레톤 로딩 컴포넌트
-function SkeletonLoader() {
-  return (
-    <div className="space-y-4">
-      {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="h-24 bg-gray-200 rounded-2xl animate-pulse"
-        />
-      ))}
-    </div>
-  )
-}
-
-// 빈 상태 UI
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="text-5xl mb-4">🔔</div>
-      <p className="text-gray-600 text-lg">알림이 없습니다</p>
-      <p className="text-gray-400 text-sm mt-2">새로운 알림이 생기면 여기 표시됩니다</p>
-    </div>
-  )
-}
-
-// 에러 상태 UI
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center bg-red-50 rounded-2xl border border-red-200">
-      <div className="text-4xl mb-4">⚠️</div>
-      <p className="text-red-600 text-lg mb-4">알림을 불러올 수 없습니다</p>
-      <button
-        onClick={onRetry}
-        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-      >
-        재시도
-      </button>
-    </div>
-  )
-}
-
-// 알림 카드 컴포넌트
-function AlertCard({
-  alert,
-  onMarkAsRead,
-}: {
-  alert: Alert
-  onMarkAsRead: (id: number) => void
-}) {
-  const barColor = getColorByServerity(alert.severity)
-  const bgColor = alert.isRead ? '#ffffff' : '#faf9fe'
-  const textOpacity = alert.isRead ? 'text-gray-500' : 'text-gray-900'
+// ── 알림 카드 ─────────────────────────────────────────────────
+function AlertCard({ alert, onMarkRead }: { alert: Alert; onMarkRead: (id: number) => void }) {
+  const sev = severityConfig(alert.severity)
 
   return (
     <div
-      onClick={() => !alert.isRead && onMarkAsRead(alert.id)}
-      className="flex gap-4 p-5 rounded-2xl cursor-pointer transition-all hover:shadow-lg"
+      onClick={() => !alert.isRead && onMarkRead(alert.id)}
+      className="transition-all duration-150 cursor-pointer"
       style={{
-        backgroundColor: bgColor,
-        boxShadow: '0 2px 12px rgba(139, 127, 212, 0.08)',
+        background: alert.isRead ? '#ffffff' : '#faf9fe',
+        borderRadius: '14px',
+        border: `1.5px solid ${alert.isRead ? '#ece9f5' : sev.color + '30'}`,
+        boxShadow: alert.isRead ? '0 1px 4px rgba(139,127,212,0.06)' : '0 2px 12px rgba(139,127,212,0.1)',
+        overflow: 'hidden',
       }}
     >
-      {/* 왼쪽 컬러 바 */}
-      <div
-        className="w-1 rounded-full flex-shrink-0"
-        style={{ backgroundColor: barColor }}
-      />
+      <div className="flex">
+        {/* 좌측 컬러 바 */}
+        <div style={{ width: 4, background: sev.color, flexShrink: 0 }} />
 
-      {/* 콘텐츠 */}
-      <div className="flex-1 min-w-0">
-        {/* 헤더: 타입, 티커, 미읽음 표시 */}
-        <div className="flex items-center gap-3 mb-2">
-          <span className={`text-sm font-semibold ${textOpacity}`}>
-            {translateAlertType(alert.alertType)}
-          </span>
-          <span className="px-2.5 py-1 text-xs font-medium text-white bg-purple-500 rounded-full">
-            {alert.ticker}
-          </span>
-          {!alert.isRead && (
-            <span className="text-purple-600 text-lg leading-none">●</span>
-          )}
+        <div className="flex-1 px-4 py-4">
+          {/* 헤더 */}
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-xs" title={alert.severity}>{sev.icon}</span>
+
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded-lg"
+              style={{ background: '#f0eefb', color: '#8b7fd4' }}
+            >
+              {alert.ticker}
+            </span>
+
+            <span
+              className="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: sev.bg, color: sev.color }}
+            >
+              {translateAlertType(alert.alertType)}
+            </span>
+
+            {!alert.isRead && (
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded-full ml-auto"
+                style={{ background: '#f0eefb', color: '#8b7fd4' }}
+              >
+                NEW
+              </span>
+            )}
+          </div>
+
+          {/* 메시지 */}
+          <p
+            className="text-sm leading-relaxed"
+            style={{ color: alert.isRead ? '#9e9ab8' : '#18162a' }}
+          >
+            {alert.message}
+          </p>
+
+          {/* 시간 */}
+          <p className="text-xs mt-2" style={{ color: '#c4c0d8' }}>
+            {timeAgo(alert.createdAt)}
+            {!alert.isRead && (
+              <span className="ml-2" style={{ color: '#8b7fd4' }}>클릭하면 읽음 처리</span>
+            )}
+          </p>
         </div>
-
-        {/* 메시지 본문 */}
-        <p className={`text-sm mb-3 leading-relaxed ${textOpacity}`}>
-          {alert.message}
-        </p>
-
-        {/* 푸터: 상대 시간 */}
-        <p className="text-xs text-gray-400">
-          {formatRelativeTime(alert.createdAt)}
-        </p>
       </div>
     </div>
   )
 }
 
-// 메인 페이지 컴포넌트
-export default function AlertsPage() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([])
-  const [activeTab, setActiveTab] = useState<FilterTab>('all')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+// ── 탭 버튼 ──────────────────────────────────────────────────
+function TabBtn({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+      style={{
+        background: active ? '#8b7fd4' : 'transparent',
+        color:      active ? '#fff' : '#9e9ab8',
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
 
-  // 초기 로드: 모든 알림 조회
+// ── 메인 페이지 ──────────────────────────────────────────────
+export default function AlertsPage() {
+  const [alerts, setAlerts]           = useState<Alert[]>([])
+  const [filtered, setFiltered]       = useState<Alert[]>([])
+  const [activeTab, setActiveTab]     = useState<FilterTab>('all')
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState<string | null>(null)
+  const [markingAll, setMarkingAll]   = useState(false)
+
   const fetchAlerts = async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
       const data = await alertApi.getAlerts()
       setAlerts(data)
-      applyFilter(data, 'all')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '알림을 불러올 수 없습니다')
+      applyFilter(data, activeTab)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '알림을 불러올 수 없습니다.')
     } finally {
       setLoading(false)
     }
   }
 
-  // 필터 적용
-  const applyFilter = (allAlerts: Alert[], tab: FilterTab) => {
-    let result = allAlerts
-    if (tab === 'unread') {
-      result = allAlerts.filter((a) => !a.isRead)
-    } else if (tab === 'high') {
-      result = allAlerts.filter((a) => a.severity === 'HIGH')
-    }
-    setFilteredAlerts(result)
+  const applyFilter = (all: Alert[], tab: FilterTab) => {
+    if (tab === 'unread') setFiltered(all.filter(a => !a.isRead))
+    else if (tab === 'high') setFiltered(all.filter(a => a.severity === 'HIGH'))
+    else setFiltered(all)
   }
 
-  // 탭 변경
   const handleTabChange = (tab: FilterTab) => {
     setActiveTab(tab)
     applyFilter(alerts, tab)
   }
 
-  // 알림 읽음 처리
-  const handleMarkAsRead = async (id: number) => {
+  const handleMarkRead = async (id: number) => {
     try {
       await alertApi.markAsRead(id)
-      // 로컬 상태 업데이트
-      setAlerts((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, isRead: true } : a))
+      const updated = alerts.map(a => a.id === id ? { ...a, isRead: true } : a)
+      setAlerts(updated)
+      applyFilter(updated, activeTab)
+    } catch { /* silent */ }
+  }
+
+  const handleMarkAllRead = async () => {
+    setMarkingAll(true)
+    try {
+      await Promise.all(
+        alerts.filter(a => !a.isRead).map(a => alertApi.markAsRead(a.id))
       )
-      applyFilter(
-        alerts.map((a) => (a.id === id ? { ...a, isRead: true } : a)),
-        activeTab
-      )
-    } catch (err) {
-      console.error('Failed to mark as read:', err)
+      const updated = alerts.map(a => ({ ...a, isRead: true }))
+      setAlerts(updated)
+      applyFilter(updated, activeTab)
+    } catch { /* silent */ } finally {
+      setMarkingAll(false)
     }
   }
 
-  // 컴포넌트 마운트 시 알림 조회
-  useEffect(() => {
-    fetchAlerts()
-  }, [])
+  useEffect(() => { fetchAlerts() }, [])
 
-  // 미읽음 건수 계산
-  const unreadCount = alerts.filter((a) => !a.isRead).length
-  const highSeverityCount = alerts.filter((a) => a.severity === 'HIGH').length
+  const unreadCount = alerts.filter(a => !a.isRead).length
+  const highCount   = alerts.filter(a => a.severity === 'HIGH').length
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 border-b border-gray-200">
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-3xl font-bold text-gray-900">🔔 알림</h1>
-          {unreadCount > 0 && (
-            <span className="px-3 py-1 text-sm font-semibold text-white bg-red-500 rounded-full">
-              {unreadCount}
-            </span>
-          )}
-        </div>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
 
-        {/* 필터 탭 */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleTabChange('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              activeTab === 'all'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            전체
-          </button>
-          <button
-            onClick={() => handleTabChange('unread')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              activeTab === 'unread'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            미읽음
+      {/* ── 헤더 ──────────────────────────────────────────── */}
+      <header
+        className="sticky top-0 z-30 px-6 py-3"
+        style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', boxShadow: '0 1px 6px rgba(139,127,212,0.06)' }}
+      >
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <p className="font-bold text-base" style={{ color: '#18162a' }}>🔔 알림</p>
             {unreadCount > 0 && (
-              <span className="px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: '#ef4444', color: '#fff' }}
+              >
                 {unreadCount}
               </span>
             )}
-          </button>
-          <button
-            onClick={() => handleTabChange('high')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              activeTab === 'high'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            HIGH 긴급
-            {highSeverityCount > 0 && (
-              <span className="px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">
-                {highSeverityCount}
-              </span>
-            )}
-          </button>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+              className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all disabled:opacity-50"
+              style={{ background: '#f0eefb', color: '#8b7fd4', border: '1.5px solid #d4cff2' }}
+            >
+              {markingAll ? '처리 중...' : '전체 읽음'}
+            </button>
+          )}
         </div>
-      </div>
+      </header>
 
-      {/* 콘텐츠 영역 */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-        {loading && <SkeletonLoader />}
-        {error && !loading && <ErrorState onRetry={fetchAlerts} />}
-        {!loading && !error && filteredAlerts.length === 0 && <EmptyState />}
-        {!loading && !error && filteredAlerts.length > 0 && (
-          <div className="space-y-4">
-            {filteredAlerts.map((alert) => (
-              <AlertCard
-                key={alert.id}
-                alert={alert}
-                onMarkAsRead={handleMarkAsRead}
-              />
+      {/* ── 메인 ──────────────────────────────────────────── */}
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+        {/* 탭 + 통계 */}
+        <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px' }}>
+          <TabBtn active={activeTab === 'all'}    onClick={() => handleTabChange('all')}>
+            전체 ({alerts.length})
+          </TabBtn>
+          <TabBtn active={activeTab === 'unread'} onClick={() => handleTabChange('unread')}>
+            미읽음 {unreadCount > 0 && `(${unreadCount})`}
+          </TabBtn>
+          <TabBtn active={activeTab === 'high'}   onClick={() => handleTabChange('high')}>
+            🔴 긴급 {highCount > 0 && `(${highCount})`}
+          </TabBtn>
+        </div>
+
+        {/* 심각도 요약 카드 */}
+        {!loading && alerts.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { key: 'HIGH',   ...severityConfig('HIGH') },
+              { key: 'MEDIUM', ...severityConfig('MEDIUM') },
+              { key: 'LOW',    ...severityConfig('LOW') },
+            ].map(s => (
+              <div
+                key={s.key}
+                onClick={() => handleTabChange(s.key === 'HIGH' ? 'high' : 'all')}
+                className="cursor-pointer text-center transition-all hover:shadow-md"
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '14px',
+                  padding: '14px',
+                  border: `1.5px solid ${s.color}22`,
+                  boxShadow: '0 2px 8px rgba(139,127,212,0.07)',
+                }}
+              >
+                <p className="text-xl mb-1">{s.icon}</p>
+                <p className="text-xl font-bold" style={{ color: '#18162a' }}>
+                  {alerts.filter(a => a.severity === s.key).length}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: s.color, fontWeight: 600 }}>{s.label}</p>
+              </div>
             ))}
           </div>
         )}
-      </div>
+
+        {/* 알림 목록 */}
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-2xl"
+                style={{ height: 96, background: '#f3f1fa' }} />
+            ))}
+          </div>
+        ) : error ? (
+          <div style={{ ...CARD, textAlign: 'center', paddingTop: 48, paddingBottom: 48 }}>
+            <p className="text-2xl mb-3">⚠️</p>
+            <p className="font-medium" style={{ color: '#f43f5e' }}>{error}</p>
+            <button
+              onClick={fetchAlerts}
+              className="mt-4 px-5 py-2 rounded-xl text-sm font-semibold text-white"
+              style={{ background: '#8b7fd4' }}
+            >
+              재시도
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ ...CARD, textAlign: 'center', paddingTop: 48, paddingBottom: 48 }}>
+            <p className="text-4xl mb-3">🔔</p>
+            <p className="font-medium" style={{ color: '#5e5a78' }}>
+              {activeTab === 'unread' ? '읽지 않은 알림이 없습니다.' :
+               activeTab === 'high'   ? '긴급 알림이 없습니다.' :
+               '알림이 없습니다.'}
+            </p>
+            <p className="text-sm mt-1" style={{ color: '#9e9ab8' }}>
+              감성 급변이나 키워드 감지 시 알림이 생성됩니다.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map(alert => (
+              <AlertCard key={alert.id} alert={alert} onMarkRead={handleMarkRead} />
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   )
 }

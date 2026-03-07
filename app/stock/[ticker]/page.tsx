@@ -164,15 +164,47 @@ export default function StockDetailPage() {
 
           <div className="flex items-center gap-3 flex-1">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
             >
               {ticker.slice(0, 2)}
             </div>
-            <div>
+            <div className="hidden sm:block">
               <p className="font-bold text-base" style={{ color: '#18162a' }}>{ticker}</p>
               <p className="text-xs" style={{ color: '#9e9ab8' }}>뉴스 감성 분석</p>
             </div>
+
+            {/* 티커 변경 검색바 */}
+            <form
+              onSubmit={e => {
+                e.preventDefault()
+                const val = (e.currentTarget.elements.namedItem('jump') as HTMLInputElement).value.trim().toUpperCase()
+                if (val && val !== ticker) router.push(`/stock/${val}`)
+              }}
+              className="flex gap-1.5 ml-2"
+            >
+              <div className="relative">
+                <input
+                  name="jump"
+                  type="text"
+                  placeholder="다른 종목..."
+                  maxLength={10}
+                  className="pl-3 pr-8 py-1.5 text-sm rounded-xl uppercase outline-none transition-all w-32"
+                  style={{ background: '#f8f7fd', border: '1.5px solid #ece9f5', color: '#18162a' }}
+                  onFocus={e => (e.target.style.borderColor = '#8b7fd4')}
+                  onBlur={e  => (e.target.style.borderColor = '#ece9f5')}
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  style={{ color: '#c4c0d8' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+            </form>
           </div>
 
           <div className="flex items-center gap-2">
