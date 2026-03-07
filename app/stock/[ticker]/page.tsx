@@ -56,7 +56,6 @@ export default function StockDetailPage() {
   const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState<string | null>(null)
   const [filter, setFilter]         = useState<SentimentFilter>('ALL')
-  const [timeRange, setTimeRange]   = useState(24)
   const [isKorean, setIsKorean]     = useState(true)
   const [activeTab, setActiveTab]   = useState<DetailTab>('overview')
   const [visibleCount, setVisibleCount] = useState(NEWS_PAGE_SIZE)
@@ -336,25 +335,11 @@ export default function StockDetailPage() {
         {/* ── 개요 탭 ─────────────────────────────────────── */}
         {!loading && news.length > 0 && activeTab === 'overview' && (
           <div className="space-y-5">
-            {/* 기간 탭 */}
-            <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px' }}>
-              {[
-                { label: '24시간', value: 24 },
-                { label: '3일',   value: 72 },
-                { label: '7일',   value: 168 },
-                { label: '30일',  value: 720 },
-              ].map(({ label, value }) => (
-                <TabBtn key={value} active={timeRange === value} onClick={() => setTimeRange(value)}>
-                  {label}
-                </TabBtn>
-              ))}
-            </div>
-
-            {/* 일별 감성 추이 — 핵심 차트 */}
+            {/* 일별 감성 추이 — 핵심 차트 (내부 탭: 7일/30일/90일) */}
             <SentimentTrendChart ticker={ticker} />
 
             <div className="grid lg:grid-cols-2 gap-5">
-              <SentimentChart ticker={ticker} hours={timeRange} />
+              <SentimentChart ticker={ticker} hours={168} />
               <SentimentDonutChart
                 positive={stats.positive}
                 negative={stats.negative}
