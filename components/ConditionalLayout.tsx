@@ -3,16 +3,29 @@
 import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import DisclaimerModal from './DisclaimerModal'
+import { useAuth } from '@/context/AuthContext'
 
 // 사이드바/푸터를 표시하지 않을 경로
 const AUTH_PATHS = ['/login', '/auth', '/terms', '/privacy']
 
+// 비로그인 사용자도 접근 가능한 공개 경로 (자체 헤더/네비 포함)
+const PUBLIC_PATHS = ['/stock/']
+
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { isAuthenticated, isLoading } = useAuth()
+
   const isAuthPage = AUTH_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   // 로그인 / 콜백 / 약관 페이지 → 사이드바 없이 풀스크린
   if (isAuthPage) {
+    return <>{children}</>
+  }
+
+  // 비로그인 사용자: 홈(/) 또는 공개 경로 → 사이드바 없이 렌더링
+  // isLoading 중에도 사이드바를 숨겨 flash/redirect 방지
+  const isPublicPath = pathname === '/' || PUBLIC_PATHS.some(p => pathname.startsWith(p))
+  if ((isLoading || !isAuthenticated) && isPublicPath) {
     return <>{children}</>
   }
 

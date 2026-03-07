@@ -1,12 +1,13 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { newsApi, watchlistApi } from '@/lib/api'
-import type { News, NewsSummary } from '@/types'
+import type { News, NewsSummary, SentimentLabel } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
 import SentimentTrendChart from '@/components/SentimentTrendChart'
 import PriceVsSentimentChart from '@/components/PriceVsSentimentChart'
+import SentimentMemoModal from '@/components/SentimentMemoModal'
 import NewsCard from '@/components/NewsCard'
 import NewsCardSkeleton from '@/components/NewsCardSkeleton'
 import TechnicalPanel from '@/components/TechnicalPanel'
@@ -67,6 +68,18 @@ export default function StockDetailPage() {
 
   const [inWatchlist, setInWatchlist]       = useState(false)
   const [watchlistLoading, setWatchlistLoading] = useState(false)
+
+  const [showMemoModal, setShowMemoModal] = useState(false)
+
+  // 최근 뉴스에서 현재 감성 점수 계산 (최근 10건 평균)
+  const currentSentiment = useMemo(() => {
+    const recent = news.slice(0, 10).filter(n => n.sentimentScore != null)
+    if (recent.length === 0) return { score: null, label: null as SentimentLabel | null }
+    const avg = recent.reduce((s, n) => s + (n.sentimentScore ?? 0), 0) / recent.length
+    const score = parseFloat(avg.toFixed(3))
+    const label: SentimentLabel = score >= 0.2 ? 'POSITIVE' : score <= -0.2 ? 'NEGATIVE' : 'NEUTRAL'
+    return { score, label }
+  }, [news])
 
   // ── 데이터 로드 ─────────────────────────────────────────────
   const fetchNews = useCallback(async (sym: string) => {
@@ -337,7 +350,30 @@ export default function StockDetailPage() {
         {!loading && news.length > 0 && activeTab === 'overview' && (
           <div className="space-y-5">
             {/* 일별 감성 추이 — 핵심 차트 (내부 탭: 7일/30일/90일) */}
-            <SentimentTrendChart ticker={ticker} />
+            <div style={{ position: 'relative' }}>
+              <SentimentTrendChart ticker={ticker} />
+
+              {/* 이 시점 메모 — 로그인 사용자만 표시 */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => setShowMemoModal(true)}
+                  className="absolute top-5 right-5 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+                  style={{
+                    background: '#f0eefb',
+                    color: '#8b7fd4',
+                    border: '1.5px solid #d4cff2',
+                    zIndex: 10,
+                  }}
+                  title="이 시점의 감성 점수와 함께 메모를 저장합니다"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  이 시점 메모
+                </button>
+              )}
+            </div>
 
             {/* 주가 vs 감성 상관 차트 */}
             <PriceVsSentimentChart ticker={ticker} />
@@ -416,6 +452,17 @@ export default function StockDetailPage() {
           </div>
         )}
       </main>
+
+      {/* ── 감성 메모 모달 ─────────────────────────────────── */}
+      {showMemoModal && (
+        <SentimentMemoModal
+          ticker={ticker}
+          sentimentScore={currentSentiment.score}
+          sentimentLabel={currentSentiment.label}
+          onClose={() => setShowMemoModal(false)}
+          onSaved={() => setShowMemoModal(false)}
+        />
+      )}
     </div>
   )
 }

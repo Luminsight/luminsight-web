@@ -1,3 +1,5 @@
+export type SentimentLabel = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+
 export interface News {
   id: number
   ticker: string
@@ -258,6 +260,10 @@ export interface JournalEntry {
   realizedPnl: number | null
   /** AI 신호 방향과 실제 매매 일치 여부 */
   signalMatched: boolean | null
+  /** 기록 시점의 감성 점수 스냅샷 (-1 ~ 1) */
+  sentimentScore: number | null
+  /** 기록 시점의 감성 레이블 */
+  sentimentLabel: SentimentLabel | null
   createdAt: string
   updatedAt: string
 }
@@ -272,6 +278,9 @@ export interface CreateJournalRequest {
   aiSignal?: InvestOpinion
   aiConfidence?: number
   realizedPnl?: number
+  /** 기록 시점 감성 점수 스냅샷 */
+  sentimentScore?: number
+  sentimentLabel?: SentimentLabel
 }
 
 export interface UpdateJournalRequest {

@@ -138,9 +138,11 @@ export default function Sidebar() {
       .catch(() => setUnreadCount(0))
   }, [isAuthenticated])
 
-  // 비로그인 시 로그인 페이지로 리다이렉트 (login 페이지 자체는 제외)
+  // 비로그인 시 로그인 페이지로 리다이렉트
+  // 단, 공개 경로(랜딩 페이지, 종목 상세)는 제외 — ConditionalLayout에서 사이드바 자체를 숨김
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && pathname !== '/login' && !pathname.startsWith('/auth')) {
+    const isPublicPath = pathname === '/' || pathname.startsWith('/stock/')
+    if (!isLoading && !isAuthenticated && !isPublicPath && pathname !== '/login' && !pathname.startsWith('/auth')) {
       router.replace('/login')
     }
   }, [isLoading, isAuthenticated, pathname, router])

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { journalApi, tradingApi } from '@/lib/api'
-import type { JournalEntry, CreateJournalRequest, PositionSummary, InvestOpinion, TradeType } from '@/types'
+import type { JournalEntry, CreateJournalRequest, PositionSummary, InvestOpinion, TradeType, SentimentLabel } from '@/types'
 
 // ──────────────────────────────────────────────
 // 상수 / 헬퍼
@@ -41,6 +41,18 @@ const SIGNAL_COLOR: Record<string, string> = {
   BUY:  '#22c55e',
   SELL: '#f43f5e',
   HOLD: '#8b7fd4',
+}
+
+// 감성 스냅샷 색상 / 레이블
+function sentimentSnapshotColor(label: SentimentLabel | null): string {
+  if (label === 'POSITIVE') return '#f43f5e'
+  if (label === 'NEGATIVE') return '#3b82f6'
+  return '#8b7fd4'
+}
+function sentimentSnapshotText(label: SentimentLabel | null, score: number | null): string {
+  const prefix = label === 'POSITIVE' ? '긍정' : label === 'NEGATIVE' ? '부정' : '중립'
+  const num = score != null ? ` ${score > 0 ? '+' : ''}${score.toFixed(2)}` : ''
+  return prefix + num
 }
 
 // ──────────────────────────────────────────────
@@ -145,6 +157,20 @@ function JournalRow({ entry, onDelete }: { entry: JournalEntry; onDelete: (id: n
 
         <div className="flex-1" />
 
+        {/* 감성 스냅샷 뱃지 — 기록 시점 감성 */}
+        {entry.sentimentLabel && (
+          <span
+            className="text-xs font-semibold px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-1"
+            style={{
+              background: sentimentSnapshotColor(entry.sentimentLabel) + '15',
+              color: sentimentSnapshotColor(entry.sentimentLabel),
+            }}
+            title="기록 당시 감성 점수"
+          >
+            📊 {sentimentSnapshotText(entry.sentimentLabel, entry.sentimentScore)}
+          </span>
+        )}
+
         {/* AI 신호 */}
         {entry.aiSignal && (
           <span
@@ -210,6 +236,16 @@ function JournalRow({ entry, onDelete }: { entry: JournalEntry; onDelete: (id: n
                   {entry.aiConfidence != null && (
                     <span className="text-gray-400 font-normal"> ({fmt.pct(entry.aiConfidence)})</span>
                   )}
+                </p>
+              </div>
+            )}
+
+            {/* 감성 스냅샷 */}
+            {entry.sentimentLabel && (
+              <div className="rounded-xl p-3" style={{ background: '#f8f7fd' }}>
+                <p className="text-xs text-gray-400 mb-1">당시 감성 점수</p>
+                <p className="text-sm font-semibold" style={{ color: sentimentSnapshotColor(entry.sentimentLabel) }}>
+                  {sentimentSnapshotText(entry.sentimentLabel, entry.sentimentScore)}
                 </p>
               </div>
             )}
