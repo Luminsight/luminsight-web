@@ -5,6 +5,7 @@ import { newsApi, watchlistApi } from '@/lib/api'
 import type { News, NewsSummary } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
+import SentimentTrendChart from '@/components/SentimentTrendChart'
 import NewsCard from '@/components/NewsCard'
 import NewsCardSkeleton from '@/components/NewsCardSkeleton'
 import TechnicalPanel from '@/components/TechnicalPanel'
@@ -348,6 +349,9 @@ export default function StockDetailPage() {
                 </TabBtn>
               ))}
             </div>
+
+            {/* 일별 감성 추이 — 핵심 차트 */}
+            <SentimentTrendChart ticker={ticker} />
 
             <div className="grid lg:grid-cols-2 gap-5">
               <SentimentChart ticker={ticker} hours={timeRange} />

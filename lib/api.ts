@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult, SentimentTimeSeries, Alert, FundamentalData, EarningsHistory, PeerComparison, JournalEntry, CreateJournalRequest, UpdateJournalRequest, PositionSummary } from '@/types'
+import type { News, NewsSummary, TechnicalIndicatorData, SignalScoreResult, SentimentTimeSeries, SentimentWeeklySummary, Alert, FundamentalData, EarningsHistory, PeerComparison, JournalEntry, CreateJournalRequest, UpdateJournalRequest, PositionSummary } from '@/types'
 
 
 // 백엔드 API URL
@@ -172,7 +172,7 @@ export const newsApi = {
 
 // ── 감성 분석 API ──────────────────────────────────────────────
 export const sentimentApi = {
-  // 감성 시계열 데이터 조회 (캐시 2분)
+  // 감성 시계열 데이터 조회 — 시간 단위 (캐시 2분)
   getTimeSeries: async (
     ticker: string,
     hours: number = 24
@@ -191,6 +191,37 @@ export const sentimentApi = {
           params: { days, interval: 'HOURLY' },
         })
       }
+      cache.set(cacheKey, response.data, TTL.SENTIMENT_SERIES)
+      return response.data
+    })
+  },
+
+  // 일별 감성 추이 — 일 단위 (캐시 2분)
+  getTimeSeriesByDays: async (
+    ticker: string,
+    days: number = 30
+  ): Promise<SentimentTimeSeries> => {
+    const cacheKey = `sentiment:daily:${ticker}:${days}`
+    const cached = cache.get<SentimentTimeSeries>(cacheKey)
+    if (cached) return cached
+
+    return withRetry(async () => {
+      const response = await api.get(`/sentiment/timeseries/${ticker}/recent`, {
+        params: { days, interval: 'DAILY' },
+      })
+      cache.set(cacheKey, response.data, TTL.SENTIMENT_SERIES)
+      return response.data
+    })
+  },
+
+  // 7일 vs 이전 7일 요약 비교
+  getWeeklySummary: async (ticker: string): Promise<SentimentWeeklySummary> => {
+    const cacheKey = `sentiment:summary:${ticker}`
+    const cached = cache.get<SentimentWeeklySummary>(cacheKey)
+    if (cached) return cached
+
+    return withRetry(async () => {
+      const response = await api.get(`/sentiment/timeseries/${ticker}/summary`)
       cache.set(cacheKey, response.data, TTL.SENTIMENT_SERIES)
       return response.data
     })

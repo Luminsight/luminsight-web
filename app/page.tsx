@@ -326,24 +326,33 @@ export default function DashboardPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuth()
 
-  const [watchlist, setWatchlist]       = useState<string[]>([])
+  const [watchlist, setWatchlist]           = useState<string[]>([])
   const [watchlistLoaded, setWatchlistLoaded] = useState(false)
-  const [allNews, setAllNews]           = useState<News[]>([])
-  const [newsLoading, setNewsLoading]   = useState(false)
-  const [showCount, setShowCount]       = useState(10)
+  const [isEmptyWatchlist, setIsEmptyWatchlist] = useState(false)  // 온보딩 트리거
+  const [allNews, setAllNews]               = useState<News[]>([])
+  const [newsLoading, setNewsLoading]       = useState(false)
+  const [showCount, setShowCount]           = useState(10)
 
   // ── 관심 종목 로드 ─────────────────────────────────────────
   const loadWatchlist = useCallback(async () => {
     if (!isAuthenticated) {
       setWatchlist(DEFAULT_TICKERS)
+      setIsEmptyWatchlist(false)
       setWatchlistLoaded(true)
       return
     }
     try {
       const tickers = await watchlistApi.getWatchlist()
-      setWatchlist(tickers.length > 0 ? tickers : DEFAULT_TICKERS)
+      if (tickers.length > 0) {
+        setWatchlist(tickers)
+        setIsEmptyWatchlist(false)
+      } else {
+        setWatchlist(DEFAULT_TICKERS)
+        setIsEmptyWatchlist(true)   // 온보딩 표시
+      }
     } catch {
       setWatchlist(DEFAULT_TICKERS)
+      setIsEmptyWatchlist(false)
     } finally {
       setWatchlistLoaded(true)
     }
@@ -375,6 +384,12 @@ export default function DashboardPage() {
     if (watchlist.includes(ticker)) return
     if (isAuthenticated) {
       try { await watchlistApi.addTicker(ticker) } catch { /* silent */ }
+      // 첫 종목 추가 시 온보딩 해제, 기본 티커 제거
+      if (isEmptyWatchlist) {
+        setIsEmptyWatchlist(false)
+        setWatchlist([ticker])
+        return
+      }
     }
     setWatchlist(prev => [...prev, ticker])
   }
@@ -465,6 +480,75 @@ export default function DashboardPage() {
 
       {/* ── 메인 ───────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        {/* ── 온보딩: 빈 관심 종목 (로그인 유저 전용) ──── */}
+        {isAuthenticated && isEmptyWatchlist && watchlistLoaded && (
+          <div style={{
+            background: 'linear-gradient(135deg, #8b7fd4 0%, #6a5fc4 100%)',
+            borderRadius: '20px', padding: '28px',
+            position: 'relative', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(139,127,212,0.25)',
+          }}>
+            <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120,
+              borderRadius: '50%', background: 'rgba(255,255,255,0.08)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: -20, left: 40, width: 80, height: 80,
+              borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+
+            <div className="relative">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 24 }}>👋</span>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 16, color: '#ffffff', margin: 0 }}>관심 종목을 추가해 보세요</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', margin: '2px 0 0' }}>
+                    아래 추천 종목 중 분석하고 싶은 종목을 선택하세요
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+                {[
+                  { ticker: 'AAPL', name: '애플', emoji: '🍎' },
+                  { ticker: 'TSLA', name: '테슬라', emoji: '⚡' },
+                  { ticker: 'NVDA', name: '엔비디아', emoji: '🎮' },
+                  { ticker: 'MSFT', name: '마이크로소프트', emoji: '🪟' },
+                  { ticker: 'GOOGL', name: '구글', emoji: '🔍' },
+                  { ticker: 'AMZN', name: '아마존', emoji: '📦' },
+                ].map(({ ticker, name, emoji }) => (
+                  <button
+                    key={ticker}
+                    onClick={() => handleAdd(ticker)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '8px 14px', borderRadius: 12, cursor: 'pointer',
+                      background: 'rgba(255,255,255,0.15)',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      color: '#ffffff', fontSize: 13, fontWeight: 600,
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.25)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+                  >
+                    <span>{emoji}</span>
+                    <span>{ticker}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: 400 }}>{name}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15 }}>+</span>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setIsEmptyWatchlist(false)}
+                style={{
+                  marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.5)',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                나중에 추가하기
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Hero: 오늘의 시장 감성 ─────────────────────── */}
         {watchlistNews.length > 0 && (

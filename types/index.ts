@@ -29,15 +29,49 @@ export interface SentimentDataPoint {
   timestamp: string
   averageScore: number
   totalCount: number
+  positiveCount: number
+  negativeCount: number
+  neutralCount: number
+  confidence: number
+}
+
+export type SentimentTrend = 'IMPROVING' | 'DETERIORATING' | 'STABLE' | 'VOLATILE'
+
+export interface SentimentWeeklySummary {
+  ticker: string
+  recent7Days: {
+    averageScore: number
+    positiveRatio: number
+    negativeRatio: number
+    neutralRatio: number
+    totalNews: number
+    trend: SentimentTrend
+  }
+  previous7Days: {
+    averageScore: number
+    positiveRatio: number
+    totalNews: number
+  }
+  change: {
+    scoreChange: number
+    positiveRatioChange: number
+  }
 }
 
 export interface SentimentTimeSeries {
   ticker: string
+  startDate: string
+  endDate: string
+  interval: 'HOURLY' | 'DAILY' | 'WEEKLY'
   dataPoints: SentimentDataPoint[]
   summary: {
     averageScore: number
     totalNews: number
-    trend: string
+    trend: SentimentTrend
+    volatility: number
+    positiveCount: number
+    negativeCount: number
+    neutralCount: number
   }
 }
 
