@@ -321,6 +321,241 @@ function AddTickerInput({ onAdd }: { onAdd: (ticker: string) => void }) {
   )
 }
 
+// ── 랜딩 페이지 (비로그인) ────────────────────────────────────
+function LandingPage({ news }: { news: News[] }) {
+  const router = useRouter()
+
+  // 인기 티커별 감성 집계
+  const FEATURED = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL', 'AMZN']
+  const tickerStats = FEATURED.map(ticker => {
+    const tn  = news.filter(n => n.ticker === ticker)
+    const pos = tn.filter(n => n.sentimentLabel === 'POSITIVE').length
+    const neg = tn.filter(n => n.sentimentLabel === 'NEGATIVE').length
+    const avg = tn.length > 0 ? tn.reduce((s, n) => s + n.sentimentScore, 0) / tn.length : 0
+    const dominant = pos > neg ? 'POSITIVE' : neg > pos ? 'NEGATIVE' : 'NEUTRAL'
+    return { ticker, count: tn.length, avg, dominant }
+  }).filter(t => t.count > 0)
+
+  const totalNews = news.length
+  const totalTickers = new Set(news.map(n => n.ticker)).size
+
+  const FEATURES = [
+    { icon: '📊', title: '실시간 감성 분석', desc: 'GPT-4o가 뉴스 하나하나를 읽고 긍정·부정·중립으로 분류합니다.' },
+    { icon: '📈', title: '추이 차트', desc: '7일·30일·90일 감성 흐름으로 시장 분위기 변화를 한눈에 확인하세요.' },
+    { icon: '🔔', title: '이상 감지 알림', desc: '감성이 급변하면 즉시 알려드립니다. 중요한 순간을 놓치지 마세요.' },
+  ]
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
+
+      {/* ── 네비 ──────────────────────────────────────────────── */}
+      <header style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', position: 'sticky', top: 0, zIndex: 30 }}>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div style={{
+              width: 32, height: 32, borderRadius: 10,
+              background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 16 }}>🔮</span>
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 16, color: '#18162a', letterSpacing: '-0.3px' }}>LuminSight</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/login')}
+              style={{ fontSize: 13, fontWeight: 500, color: '#8b7fd4', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px' }}
+            >
+              로그인
+            </button>
+            <button
+              onClick={() => router.push('/auth/register')}
+              className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
+            >
+              무료로 시작하기
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-6">
+
+        {/* ── Hero ──────────────────────────────────────────────── */}
+        <div style={{ padding: '80px 0 60px', textAlign: 'center' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: '#f0eefb', borderRadius: 20, padding: '4px 14px',
+            fontSize: 12, fontWeight: 600, color: '#8b7fd4', marginBottom: 24,
+          }}>
+            <span>✨</span> AI 기반 주식 뉴스 감성 분석
+          </div>
+
+          <h1 style={{ fontSize: 'clamp(32px, 5vw, 56px)', fontWeight: 800, color: '#18162a', lineHeight: 1.15, margin: '0 0 20px', letterSpacing: '-1px' }}>
+            AI가 읽는 주식 뉴스,<br />
+            <span style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              투자 감각을 높여드립니다
+            </span>
+          </h1>
+
+          <p style={{ fontSize: 17, color: '#6b7280', maxWidth: 520, margin: '0 auto 36px', lineHeight: 1.7 }}>
+            수천 건의 뉴스를 실시간으로 분석해 내 관심 종목의 시장 분위기를 한눈에 보여드립니다.
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48 }}>
+            <button
+              onClick={() => router.push('/auth/register')}
+              className="px-6 py-3 rounded-2xl text-base font-semibold text-white transition-all"
+              style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)', boxShadow: '0 4px 20px rgba(139,127,212,0.4)' }}
+            >
+              무료로 시작하기 →
+            </button>
+            <button
+              onClick={() => router.push('/stock/AAPL')}
+              className="px-6 py-3 rounded-2xl text-base font-semibold transition-all"
+              style={{ background: '#ffffff', color: '#8b7fd4', border: '1.5px solid #d4cff2' }}
+            >
+              AAPL 직접 분석해보기
+            </button>
+          </div>
+
+          {/* 실시간 수치 */}
+          {totalNews > 0 && (
+            <div style={{ display: 'flex', gap: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {[
+                { value: totalNews.toLocaleString(), label: '오늘 분석된 뉴스' },
+                { value: totalTickers.toString(), label: '추적 중인 종목' },
+                { value: 'GPT-4o', label: 'AI 엔진' },
+              ].map(s => (
+                <div key={s.label} style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: '#18162a', margin: '0 0 2px' }}>{s.value}</p>
+                  <p style={{ fontSize: 12, color: '#9e9ab8', margin: 0 }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── 지금 주목할 종목 ─────────────────────────────────── */}
+        {tickerStats.length > 0 && (
+          <div style={{ marginBottom: 64 }}>
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: '#18162a', margin: '0 0 6px' }}>지금 주목할 종목</h2>
+              <p style={{ fontSize: 14, color: '#9e9ab8', margin: 0 }}>실시간 뉴스 감성 분석 결과</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+              {tickerStats.map(({ ticker, count, avg, dominant }) => (
+                <button
+                  key={ticker}
+                  onClick={() => router.push(`/stock/${ticker}`)}
+                  style={{
+                    background: '#ffffff', borderRadius: 16, padding: '20px 16px',
+                    border: `1.5px solid ${sentimentColor(dominant)}20`,
+                    cursor: 'pointer', textAlign: 'left',
+                    boxShadow: '0 2px 8px rgba(139,127,212,0.07)',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(139,127,212,0.15)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(139,127,212,0.07)' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff', fontSize: 11, fontWeight: 700,
+                    }}>
+                      {ticker.slice(0, 2)}
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20,
+                      background: sentimentBg(dominant), color: sentimentColor(dominant),
+                    }}>
+                      {dominant === 'POSITIVE' ? '↑ 긍정' : dominant === 'NEGATIVE' ? '↓ 부정' : '− 중립'}
+                    </span>
+                  </div>
+                  <p style={{ fontWeight: 700, fontSize: 15, color: '#18162a', margin: '0 0 2px' }}>{ticker}</p>
+                  <p style={{ fontSize: 12, color: sentimentColor(dominant), fontWeight: 600, margin: '0 0 6px' }}>
+                    {avg > 0 ? '+' : ''}{avg.toFixed(2)}
+                  </p>
+                  <p style={{ fontSize: 11, color: '#c4c0d8', margin: 0 }}>뉴스 {count}건</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── 기능 소개 ─────────────────────────────────────────── */}
+        <div style={{ marginBottom: 64 }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#18162a', margin: '0 0 6px' }}>핵심 기능</h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+            {FEATURES.map(f => (
+              <div key={f.title} style={{
+                background: '#ffffff', borderRadius: 18, padding: '28px 24px',
+                boxShadow: '0 2px 12px rgba(139,127,212,0.08)', border: '1px solid #f3f1fa',
+              }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, fontSize: 22,
+                  background: '#f0eefb', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 14,
+                }}>
+                  {f.icon}
+                </div>
+                <p style={{ fontWeight: 700, fontSize: 15, color: '#18162a', margin: '0 0 8px' }}>{f.title}</p>
+                <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 최하단 CTA ─────────────────────────────────────────── */}
+        <div style={{
+          background: 'linear-gradient(135deg, #8b7fd4 0%, #6a5fc4 100%)',
+          borderRadius: 24, padding: '48px 32px', textAlign: 'center', marginBottom: 64,
+          position: 'relative', overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(139,127,212,0.3)',
+        }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -30, left: 60, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+          <div className="relative">
+            <h2 style={{ fontSize: 26, fontWeight: 800, color: '#ffffff', margin: '0 0 10px' }}>
+              지금 무료로 시작하세요
+            </h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', margin: '0 0 28px' }}>
+              관심 종목을 등록하고 AI 감성 분석을 바로 받아보세요.
+            </p>
+            <button
+              onClick={() => router.push('/auth/register')}
+              style={{
+                background: '#ffffff', color: '#8b7fd4',
+                padding: '12px 32px', borderRadius: 14, fontSize: 15, fontWeight: 700,
+                border: 'none', cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
+              onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+            >
+              무료 계정 만들기 →
+            </button>
+          </div>
+        </div>
+
+      </main>
+
+      {/* ── 푸터 ──────────────────────────────────────────────── */}
+      <footer style={{ borderTop: '1px solid #ece9f5', padding: '20px 24px', textAlign: 'center' }}>
+        <p style={{ fontSize: 12, color: '#c4c0d8', margin: 0 }}>
+          © 2026 LuminSight · AI 기반 주식 뉴스 감성 분석
+        </p>
+      </footer>
+    </div>
+  )
+}
+
 // ── 메인 대시보드 ────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter()
@@ -378,6 +613,11 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAllNews()
   }, [loadAllNews])
+
+  // ── 비로그인 → 랜딩 페이지 ──────────────────────────────
+  if (!isLoading && !isAuthenticated) {
+    return <LandingPage news={allNews} />
+  }
 
   // ── 관심 종목 추가/삭제 ──────────────────────────────────
   const handleAdd = async (ticker: string) => {
