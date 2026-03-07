@@ -6,6 +6,7 @@ import type { News, NewsSummary } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
 import SentimentTrendChart from '@/components/SentimentTrendChart'
+import PriceVsSentimentChart from '@/components/PriceVsSentimentChart'
 import NewsCard from '@/components/NewsCard'
 import NewsCardSkeleton from '@/components/NewsCardSkeleton'
 import TechnicalPanel from '@/components/TechnicalPanel'
@@ -337,6 +338,9 @@ export default function StockDetailPage() {
           <div className="space-y-5">
             {/* 일별 감성 추이 — 핵심 차트 (내부 탭: 7일/30일/90일) */}
             <SentimentTrendChart ticker={ticker} />
+
+            {/* 주가 vs 감성 상관 차트 */}
+            <PriceVsSentimentChart ticker={ticker} />
 
             <div className="grid lg:grid-cols-2 gap-5">
               <SentimentChart ticker={ticker} hours={168} />
