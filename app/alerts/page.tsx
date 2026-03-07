@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import type { Alert, AlertRule, AlertRuleType, CreateAlertRuleRequest } from '@/types'
-import { alertApi, alertRuleApi } from '@/lib/api'
+import { alertApi, alertRuleApi, watchlistApi } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 
 // ── 상수 ─────────────────────────────────────────────────────
@@ -193,15 +193,25 @@ function RuleCard({ rule, onToggle, onDelete }: {
 
 // ── 알림 규칙 추가 폼 ─────────────────────────────────────────
 function AddRuleForm({ onAdded }: { onAdded: () => void }) {
-  const [open, setOpen]         = useState(false)
-  const [ticker, setTicker]     = useState('')
-  const [type, setType]         = useState<AlertRuleType>('SENTIMENT_SPIKE')
+  const [open, setOpen]           = useState(false)
+  const [ticker, setTicker]       = useState('')
+  const [type, setType]           = useState<AlertRuleType>('SENTIMENT_SPIKE')
   const [threshold, setThreshold] = useState(30)
-  const [hours, setHours]       = useState(24)
-  const [keywords, setKeywords] = useState('')
-  const [volume, setVolume]     = useState(10)
-  const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState<string | null>(null)
+  const [hours, setHours]         = useState(24)
+  const [keywords, setKeywords]   = useState('')
+  const [volume, setVolume]       = useState(10)
+  const [saving, setSaving]       = useState(false)
+  const [error, setError]         = useState<string | null>(null)
+  const [watchlist, setWatchlist] = useState<string[]>([])
+  const [showWatchlist, setShowWatchlist] = useState(false)
+
+  // 폼 열릴 때 Watchlist 로드
+  useEffect(() => {
+    if (!open) return
+    watchlistApi.getWatchlist()
+      .then(tickers => setWatchlist(tickers))
+      .catch(() => setWatchlist([]))
+  }, [open])
 
   const handleSubmit = async () => {
     if (!ticker.trim()) { setError('티커를 입력하세요.'); return }
@@ -247,11 +257,43 @@ function AddRuleForm({ onAdded }: { onAdded: () => void }) {
 
       {/* 티커 */}
       <div className="mb-3">
-        <label className="block text-xs font-medium mb-1" style={{ color: '#5e5a78' }}>종목 티커</label>
+        <label className="block text-xs font-medium mb-1.5" style={{ color: '#5e5a78' }}>종목 티커</label>
+
+        {/* 관심 종목에서 선택 */}
+        {watchlist.length > 0 && (
+          <div className="mb-2">
+            <button
+              onClick={() => setShowWatchlist(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all"
+              style={{ background: '#f0eefb', color: '#8b7fd4' }}
+            >
+              ⭐ 관심 종목에서 선택
+              <span style={{ fontSize: 10 }}>{showWatchlist ? '▲' : '▼'}</span>
+            </button>
+            {showWatchlist && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {watchlist.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setTicker(t); setShowWatchlist(false) }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all"
+                    style={{
+                      background: ticker === t ? '#8b7fd4' : '#f0eefb',
+                      color: ticker === t ? '#fff' : '#8b7fd4',
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <input
           value={ticker}
           onChange={e => setTicker(e.target.value.toUpperCase())}
-          placeholder="AAPL, TSLA ..."
+          placeholder="직접 입력: AAPL, TSLA ..."
           className="w-full px-3 py-2 rounded-xl text-sm outline-none"
           style={{ background: '#f8f7fd', border: '1.5px solid #e0dcf5', color: '#18162a' }}
           maxLength={10}
