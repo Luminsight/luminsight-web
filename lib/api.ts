@@ -338,6 +338,25 @@ export const journalApi = {
   },
 }
 
+// ===== 관심 종목(Watchlist) API =====
+export const watchlistApi = {
+  /** 내 관심 종목 목록 */
+  getWatchlist: async (): Promise<string[]> => {
+    const response = await api.get('/watchlist')
+    return response.data.tickers as string[]
+  },
+
+  /** 관심 종목 추가 */
+  addTicker: async (ticker: string): Promise<void> => {
+    await api.post(`/watchlist/${ticker.toUpperCase()}`)
+  },
+
+  /** 관심 종목 삭제 */
+  removeTicker: async (ticker: string): Promise<void> => {
+    await api.delete(`/watchlist/${ticker.toUpperCase()}`)
+  },
+}
+
 // ===== 펀더멘털 분석 API =====
 export const fundamentalApi = {
   getFundamental: (ticker: string): Promise<FundamentalData> =>
