@@ -369,7 +369,7 @@ function LandingPage({ news }: { news: News[] }) {
               로그인
             </button>
             <button
-              onClick={() => router.push('/auth/register')}
+              onClick={() => router.push('/login')}
               className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
               style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
             >
@@ -404,7 +404,7 @@ function LandingPage({ news }: { news: News[] }) {
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 48 }}>
             <button
-              onClick={() => router.push('/auth/register')}
+              onClick={() => router.push('/login')}
               className="px-6 py-3 rounded-2xl text-base font-semibold text-white transition-all"
               style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)', boxShadow: '0 4px 20px rgba(139,127,212,0.4)' }}
             >
@@ -528,7 +528,7 @@ function LandingPage({ news }: { news: News[] }) {
               관심 종목을 등록하고 AI 감성 분석을 바로 받아보세요.
             </p>
             <button
-              onClick={() => router.push('/auth/register')}
+              onClick={() => router.push('/login')}
               style={{
                 background: '#ffffff', color: '#8b7fd4',
                 padding: '12px 32px', borderRadius: 14, fontSize: 15, fontWeight: 700,
