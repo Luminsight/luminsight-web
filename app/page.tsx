@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { newsApi, watchlistApi } from '@/lib/api'
-import type { News } from '@/types'
+import { newsApi, watchlistApi, alertApi } from '@/lib/api'
+import type { News, Alert } from '@/types'
+import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 
 // ── 상수 ───────────────────────────────────────────────────────
@@ -567,6 +568,7 @@ export default function DashboardPage() {
   const [allNews, setAllNews]               = useState<News[]>([])
   const [newsLoading, setNewsLoading]       = useState(false)
   const [showCount, setShowCount]           = useState(10)
+  const [recentAlerts, setRecentAlerts]     = useState<Alert[]>([])
 
   // ── 관심 종목 로드 ─────────────────────────────────────────
   const loadWatchlist = useCallback(async () => {
@@ -613,6 +615,14 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAllNews()
   }, [loadAllNews])
+
+  // ── 최근 알림 로드 (로그인 시만) ──────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return
+    alertApi.getAlerts()
+      .then(data => setRecentAlerts(data.filter(a => !a.isRead).slice(0, 3)))
+      .catch(() => {})
+  }, [isAuthenticated])
 
   // ── 비로그인 → 랜딩 페이지 ──────────────────────────────
   if (!isLoading && !isAuthenticated) {
@@ -919,6 +929,55 @@ export default function DashboardPage() {
                     <span className="text-xs" style={{ color: '#c4c0d8' }}>{timeAgo(news.publishedAt)}</span>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── 알림 미리보기 (로그인 + 읽지 않은 알림 있을 때) ── */}
+        {isAuthenticated && recentAlerts.length > 0 && (
+          <div style={CARD}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <p className="font-bold" style={{ color: '#18162a' }}>🔔 새 알림</p>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: '#ef4444', color: '#fff' }}>
+                  {recentAlerts.length}
+                </span>
+              </div>
+              <Link href="/alerts"
+                className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all"
+                style={{ background: '#f0eefb', color: '#8b7fd4', border: '1.5px solid #d4cff2' }}>
+                전체 보기
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {recentAlerts.map(alert => (
+                <Link key={alert.id} href="/alerts"
+                  className="flex items-start gap-3 p-3 rounded-xl transition-colors hover:bg-gray-50 block"
+                  style={{ border: '1px solid #f3f0fc' }}>
+                  <span className="text-base flex-shrink-0 mt-0.5">
+                    {alert.severity === 'HIGH' ? '🔴' : alert.severity === 'MEDIUM' ? '🟡' : '🟢'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                        style={{ background: '#f0eefb', color: '#8b7fd4' }}>
+                        {alert.ticker}
+                      </span>
+                      <span className="text-xs" style={{ color: '#c4c0d8' }}>
+                        {(() => {
+                          const diff = Date.now() - new Date(alert.createdAt).getTime()
+                          const m = Math.floor(diff / 60000)
+                          if (m < 1) return '방금'
+                          if (m < 60) return `${m}분 전`
+                          return `${Math.floor(m / 60)}시간 전`
+                        })()}
+                      </span>
+                    </div>
+                    <p className="text-xs truncate" style={{ color: '#5e5a78' }}>{alert.message}</p>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
