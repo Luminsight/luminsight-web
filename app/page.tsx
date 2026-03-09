@@ -348,7 +348,7 @@ function LandingPage({ news }: { news: News[] }) {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
 
       {/* ── 네비 ──────────────────────────────────────────────── */}
       <header style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', position: 'sticky', top: 0, zIndex: 30 }}>
@@ -381,10 +381,10 @@ function LandingPage({ news }: { news: News[] }) {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6" style={{ width: '100%' }}>
 
         {/* ── Hero ──────────────────────────────────────────────── */}
-        <div style={{ padding: '80px 0 60px', textAlign: 'center' }}>
+        <div style={{ padding: 'clamp(40px,8vw,80px) 0 clamp(32px,6vw,60px)', textAlign: 'center' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: '#f0eefb', borderRadius: 20, padding: '4px 14px',
@@ -695,7 +695,7 @@ export default function DashboardPage() {
   })()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
 
       {/* ── 온보딩 플로우 ───────────────────────────────────── */}
       {showOnboarding && (
@@ -893,7 +893,7 @@ export default function DashboardPage() {
 
           {watchlistLoaded ? (
             watchlist.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
                 {watchlist.map(ticker => (
                   <WatchlistCard
                     key={ticker}

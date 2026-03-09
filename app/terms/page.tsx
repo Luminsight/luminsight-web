@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div style={{ background: '#f5f4fa', minHeight: '100vh', padding: '40px 0' }}>
+    <div style={{ background: '#f5f4fa', minHeight: '100vh', padding: '40px 0', width: '100%', overflowX: 'hidden' }}>
       <div style={{ maxWidth: '768px', margin: '0 auto', paddingLeft: '24px', paddingRight: '24px', paddingTop: '40px', paddingBottom: '40px' }}>
         <h1 style={{ color: '#18162a', fontWeight: 800, fontSize: '32px', marginBottom: '32px' }}>
           이용약관

@@ -157,7 +157,7 @@ export default function StockDetailPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
 
       {/* ── 상단 헤더 ───────────────────────────────────────── */}
       <header

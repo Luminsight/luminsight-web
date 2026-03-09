@@ -234,7 +234,7 @@ export default function NewsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
 
       {/* ── 헤더 ──────────────────────────────────────────── */}
       <header
