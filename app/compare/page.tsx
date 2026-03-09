@@ -352,20 +352,20 @@ export default function ComparePage() {
     <div style={{ background: '#f5f4fa', minHeight: '100vh', paddingTop: '24px', paddingBottom: '24px' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 style={{ color: '#18162a', fontSize: 32, fontWeight: 700, marginBottom: 8 }}>
+        <div className="mb-6">
+          <h1 style={{ color: '#18162a', fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 700, marginBottom: 8 }}>
             📊 종목 비교
           </h1>
-          <p style={{ color: '#9e9ab8', fontSize: 14 }}>
+          <p style={{ color: '#9e9ab8', fontSize: 14 }} className="hidden sm:block">
             두 종목의 시그널 스코어, 감성 분석, 기술 지표를 한눈에 비교하세요.
           </p>
         </div>
 
         {/* Search Form */}
         <form onSubmit={handleSearch} className="mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div>
-              <label style={{ color: '#18162a', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>
+              <label style={{ color: '#18162a', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>
                 첫 번째 종목
               </label>
               <input
@@ -373,7 +373,7 @@ export default function ComparePage() {
                 value={tickerA}
                 onChange={e => setTickerA(e.target.value)}
                 placeholder="예: AAPL"
-                className="w-full px-4 py-2 rounded-lg border text-sm focus:outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-all uppercase"
                 style={{
                   borderColor: '#e0dbf5',
                   color: '#18162a',
@@ -385,7 +385,7 @@ export default function ComparePage() {
             </div>
 
             <div>
-              <label style={{ color: '#18162a', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>
+              <label style={{ color: '#18162a', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>
                 두 번째 종목
               </label>
               <input
@@ -393,7 +393,7 @@ export default function ComparePage() {
                 value={tickerB}
                 onChange={e => setTickerB(e.target.value)}
                 placeholder="예: TSLA"
-                className="w-full px-4 py-2 rounded-lg border text-sm focus:outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none transition-all uppercase"
                 style={{
                   borderColor: '#e0dbf5',
                   color: '#18162a',
@@ -406,7 +406,7 @@ export default function ComparePage() {
 
             <button
               type="submit"
-              className="w-full px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-150 hover:opacity-90"
+              className="w-full px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-150 hover:opacity-90"
               style={{
                 background: '#8b7fd4',
                 color: '#ffffff',

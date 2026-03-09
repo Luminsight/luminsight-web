@@ -164,39 +164,39 @@ export default function StockDetailPage() {
         className="sticky top-0 z-30 px-6 py-3"
         style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', boxShadow: '0 1px 6px rgba(139,127,212,0.06)' }}
       >
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4">
           {/* 뒤로가기 */}
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-1.5 text-sm transition-colors"
+            className="flex items-center gap-1 sm:gap-1.5 text-sm transition-colors shrink-0"
             style={{ color: '#9e9ab8' }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
-            대시보드
+            <span className="hidden sm:inline">대시보드</span>
           </button>
 
-          <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
             >
               {ticker.slice(0, 2)}
             </div>
-            <div className="hidden sm:block">
-              <p className="font-bold text-base" style={{ color: '#18162a' }}>{ticker}</p>
-              <p className="text-xs" style={{ color: '#9e9ab8' }}>뉴스 감성 분석</p>
+            <div>
+              <p className="font-bold text-sm sm:text-base" style={{ color: '#18162a' }}>{ticker}</p>
+              <p className="text-xs hidden sm:block" style={{ color: '#9e9ab8' }}>뉴스 감성 분석</p>
             </div>
 
-            {/* 티커 변경 검색바 */}
+            {/* 티커 변경 검색바 — 모바일 숨김 */}
             <form
               onSubmit={e => {
                 e.preventDefault()
                 const val = (e.currentTarget.elements.namedItem('jump') as HTMLInputElement).value.trim().toUpperCase()
                 if (val && val !== ticker) router.push(`/stock/${val}`)
               }}
-              className="flex gap-1.5 ml-2"
+              className="hidden sm:flex gap-1.5 ml-2"
             >
               <div className="relative">
                 <input
@@ -222,39 +222,40 @@ export default function StockDetailPage() {
             </form>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* 관심 종목 버튼 */}
             {isAuthenticated && (
               <button
                 onClick={toggleWatchlist}
                 disabled={watchlistLoading}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-sm font-medium transition-all"
                 style={{
                   background: inWatchlist ? '#fef3c7' : '#f8f7fd',
                   color:      inWatchlist ? '#d97706' : '#9e9ab8',
                   border: `1.5px solid ${inWatchlist ? '#fcd34d' : '#ece9f5'}`,
                 }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24"
+                <svg width="14" height="14" viewBox="0 0 24 24"
                   fill={inWatchlist ? 'currentColor' : 'none'}
                   stroke="currentColor" strokeWidth="2">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
-                {inWatchlist ? '관심 종목' : '+ 관심 추가'}
+                <span className="hidden sm:inline">{inWatchlist ? '관심 종목' : '+ 관심 추가'}</span>
               </button>
             )}
 
             {/* 언어 토글 */}
             <button
               onClick={() => setIsKorean(!isKorean)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all"
               style={{
                 background: isKorean ? '#f0eefb' : '#f8f7fd',
                 color:      isKorean ? '#8b7fd4' : '#9e9ab8',
                 border: `1.5px solid ${isKorean ? '#d4cff2' : '#ece9f5'}`,
               }}
             >
-              {isKorean ? '한국어' : 'English'}
+              {isKorean ? '한' : 'EN'}
+              <span className="hidden sm:inline">{isKorean ? '국어' : 'glish'}</span>
             </button>
           </div>
         </div>
@@ -338,12 +339,14 @@ export default function StockDetailPage() {
 
         {/* ── 탭 네비게이션 ───────────────────────────────── */}
         {!loading && news.length > 0 && (
-          <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px' }}>
-            {detailTabs.map(t => (
-              <TabBtn key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)}>
-                {t.label}
-              </TabBtn>
-            ))}
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
+              {detailTabs.map(t => (
+                <TabBtn key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)}>
+                  {t.label}
+                </TabBtn>
+              ))}
+            </div>
           </div>
         )}
 

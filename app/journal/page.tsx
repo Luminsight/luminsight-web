@@ -863,7 +863,7 @@ export default function JournalPage() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold" style={{ color: '#18162a' }}>📒 투자 일지</h1>
-            <p className="text-xs mt-0.5" style={{ color: '#9e9ab8' }}>
+            <p className="text-xs mt-0.5 hidden sm:block" style={{ color: '#9e9ab8' }}>
               AI 신호 대비 실제 매매를 기록하고 분석하세요
             </p>
           </div>
@@ -904,14 +904,14 @@ export default function JournalPage() {
         </div>
 
         {/* 탭 */}
-        <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: '#ece9f5' }}>
+        <div className="flex gap-1 rounded-xl p-1 w-full sm:w-fit" style={{ background: '#ece9f5' }}>
           {([
             { key: 'list',      label: '매매 기록' },
             { key: 'portfolio', label: '포지션 요약' },
             { key: 'insights',  label: '내 패턴' },
           ] as { key: 'list' | 'portfolio' | 'insights'; label: string }[]).map(({ key, label }) => (
             <button key={key} onClick={() => setActiveTab(key)}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
               style={{
                 background: activeTab === key ? '#ffffff' : 'transparent',
                 color:      activeTab === key ? '#8b7fd4' : '#9e9ab8',

@@ -439,6 +439,15 @@ function AlertSettingsTab() {
 
   return (
     <div className="space-y-3">
+      {/* 푸시 알림 구독 카드 */}
+      <div style={{ ...CARD, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <p className="text-sm font-semibold" style={{ color: '#18162a' }}>📳 푸시 알림</p>
+          <p className="text-xs mt-0.5" style={{ color: '#9e9ab8' }}>알림 발생 시 즉시 브라우저 알림을 받습니다</p>
+        </div>
+        <PushNotificationButton />
+      </div>
+
       <AddRuleForm onAdded={fetchRules} />
 
       {loading ? (
@@ -550,7 +559,6 @@ export default function AlertsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isAuthenticated && <PushNotificationButton />}
             {unreadCount > 0 && mainTab === 'history' && (
               <button
                 onClick={handleMarkAllRead}
@@ -618,7 +626,7 @@ export default function AlertsPage() {
                     key={s.key}
                     onClick={() => handleTabChange(s.key === 'CRITICAL' ? 'high' : 'all')}
                     className="cursor-pointer text-center transition-all hover:shadow-md"
-                    style={{ background: '#ffffff', borderRadius: '14px', padding: '14px', border: `1.5px solid ${s.color}22`, boxShadow: '0 2px 8px rgba(139,127,212,0.07)' }}
+                    style={{ background: '#ffffff', borderRadius: '14px', padding: 'clamp(8px, 3vw, 14px)', border: `1.5px solid ${s.color}22`, boxShadow: '0 2px 8px rgba(139,127,212,0.07)' }}
                   >
                     <p className="text-xl mb-1">{s.icon}</p>
                     <p className="text-xl font-bold" style={{ color: '#18162a' }}>

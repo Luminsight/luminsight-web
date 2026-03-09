@@ -125,7 +125,7 @@ export default function BottomNav() {
             <span className="transition-transform" style={{ transform: isActive ? 'scale(1.1)' : 'scale(1)' }}>
               {isActive ? activeIcon : icon}
             </span>
-            <span className="text-[10px] font-medium leading-none"
+            <span className="text-xs font-medium leading-none"
               style={{ color: isActive ? '#8b7fd4' : '#b0accc' }}>
               {label}
             </span>

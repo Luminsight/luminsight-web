@@ -684,10 +684,10 @@ export default function DashboardPage() {
         className="sticky top-0 z-30 px-6 py-3"
         style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', boxShadow: '0 1px 6px rgba(139,127,212,0.06)' }}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div>
+        <div className="max-w-7xl mx-auto flex items-center gap-3">
+          <div className="shrink-0">
             <p className="font-bold text-base" style={{ color: '#18162a' }}>대시보드</p>
-            <p className="text-xs" style={{ color: '#9e9ab8' }}>
+            <p className="text-xs hidden sm:block" style={{ color: '#9e9ab8' }}>
               {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
             </p>
           </div>
@@ -699,7 +699,7 @@ export default function DashboardPage() {
               const val = (e.currentTarget.elements.namedItem('q') as HTMLInputElement).value.trim().toUpperCase()
               if (val) router.push(`/stock/${val}`)
             }}
-            className="flex gap-2 flex-1 max-w-xs"
+            className="flex gap-2 flex-1"
           >
             <div className="relative flex-1">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14"
@@ -709,9 +709,9 @@ export default function DashboardPage() {
               <input
                 name="q"
                 type="text"
-                placeholder="티커 검색 (예: AAPL)"
+                placeholder="티커 검색..."
                 maxLength={10}
-                className="w-full pl-8 pr-4 py-2 text-sm rounded-xl uppercase outline-none transition-all"
+                className="w-full pl-8 pr-2 py-2 text-sm rounded-xl uppercase outline-none transition-all"
                 style={{ background: '#f8f7fd', border: '1.5px solid #ece9f5', color: '#18162a' }}
                 onFocus={e => (e.target.style.borderColor = '#8b7fd4')}
                 onBlur={e  => (e.target.style.borderColor = '#ece9f5')}
@@ -719,10 +719,13 @@ export default function DashboardPage() {
             </div>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
+              className="px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold text-white shrink-0"
               style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)' }}
             >
-              분석
+              <span className="hidden sm:inline">분석</span>
+              <svg className="sm:hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </button>
           </form>
         </div>
