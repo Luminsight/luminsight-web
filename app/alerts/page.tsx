@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import type { Alert, AlertRule, AlertRuleType, CreateAlertRuleRequest } from '@/types'
 import { alertApi, alertRuleApi, watchlistApi } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import PushNotificationButton from '@/components/PushNotificationButton'
 
 // ── 상수 ─────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
@@ -548,16 +549,19 @@ export default function AlertsPage() {
               </span>
             )}
           </div>
-          {unreadCount > 0 && mainTab === 'history' && (
-            <button
-              onClick={handleMarkAllRead}
-              disabled={markingAll}
-              className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all disabled:opacity-50"
-              style={{ background: '#f0eefb', color: '#8b7fd4', border: '1.5px solid #d4cff2' }}
-            >
-              {markingAll ? '처리 중...' : '전체 읽음'}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isAuthenticated && <PushNotificationButton />}
+            {unreadCount > 0 && mainTab === 'history' && (
+              <button
+                onClick={handleMarkAllRead}
+                disabled={markingAll}
+                className="text-xs font-medium px-3 py-1.5 rounded-xl transition-all disabled:opacity-50"
+                style={{ background: '#f0eefb', color: '#8b7fd4', border: '1.5px solid #d4cff2' }}
+              >
+                {markingAll ? '처리 중...' : '전체 읽음'}
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
