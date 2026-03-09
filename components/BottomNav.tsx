@@ -12,7 +12,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    href: '/dashboard',
+    href: '/',
     label: '홈',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +114,9 @@ export default function BottomNav() {
       }}
     >
       {navItems.map(({ href, label, icon, activeIcon }) => {
-        const isActive = pathname === href || pathname.startsWith(href + '/')
+        const isActive = href === '/'
+          ? pathname === '/'
+          : pathname === href || pathname.startsWith(href + '/')
         return (
           <Link
             key={href}

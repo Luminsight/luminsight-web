@@ -5,6 +5,7 @@ import { newsApi, watchlistApi, alertApi } from '@/lib/api'
 import type { News, Alert } from '@/types'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
+import OnboardingFlow, { isOnboardingDone } from '@/components/OnboardingFlow'
 
 // ── 상수 ───────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
@@ -569,6 +570,7 @@ export default function DashboardPage() {
   const [newsLoading, setNewsLoading]       = useState(false)
   const [showCount, setShowCount]           = useState(10)
   const [recentAlerts, setRecentAlerts]     = useState<Alert[]>([])
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   // ── 관심 종목 로드 ─────────────────────────────────────────
   const loadWatchlist = useCallback(async () => {
@@ -616,6 +618,13 @@ export default function DashboardPage() {
     loadAllNews()
   }, [loadAllNews])
 
+  // ── 온보딩 표시 여부 (첫 로그인 시) ──────────────────────
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !isOnboardingDone()) {
+      setShowOnboarding(true)
+    }
+  }, [isLoading, isAuthenticated])
+
   // ── 최근 알림 로드 (로그인 시만) ──────────────────────────
   useEffect(() => {
     if (!isAuthenticated) return
@@ -653,6 +662,15 @@ export default function DashboardPage() {
 
   const goToStock = (ticker: string) => router.push(`/stock/${ticker}`)
 
+  // ── 온보딩 완료 처리 ─────────────────────────────────────
+  const handleOnboardingComplete = (selectedTickers: string[]) => {
+    setShowOnboarding(false)
+    if (selectedTickers.length > 0) {
+      setWatchlist(selectedTickers)
+      setIsEmptyWatchlist(false)
+    }
+  }
+
   // ── 뉴스 분류 ────────────────────────────────────────────
   // 관심 종목 뉴스는 상단 우선, 나머지는 하단
   const watchlistNews = allNews.filter(n => watchlist.includes(n.ticker))
@@ -678,6 +696,11 @@ export default function DashboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f4fa' }}>
+
+      {/* ── 온보딩 플로우 ───────────────────────────────────── */}
+      {showOnboarding && (
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      )}
 
       {/* ── 헤더 ───────────────────────────────────────────── */}
       <header
