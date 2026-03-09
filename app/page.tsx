@@ -352,7 +352,7 @@ function LandingPage({ news }: { news: News[] }) {
 
       {/* ── 네비 ──────────────────────────────────────────────── */}
       <header style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', position: 'sticky', top: 0, zIndex: 30 }}>
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div style={{
               width: 32, height: 32, borderRadius: 10,
@@ -704,7 +704,7 @@ export default function DashboardPage() {
 
       {/* ── 헤더 ───────────────────────────────────────────── */}
       <header
-        className="sticky top-0 z-30 px-6 py-3"
+        className="sticky top-0 z-30 px-4 sm:px-6 py-3"
         style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', boxShadow: '0 1px 6px rgba(139,127,212,0.06)' }}
       >
         <div className="max-w-7xl mx-auto flex items-center gap-3">
@@ -839,38 +839,42 @@ export default function DashboardPage() {
             <div style={{ position: 'absolute', bottom: -30, right: 60, width: 100, height: 100,
               borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
 
-            <div className="relative flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  관심 종목 뉴스 감성
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl font-bold text-white">{watchlistSentiment.icon}</span>
-                  <span className="text-xl font-bold text-white">{watchlistSentiment.label}</span>
+            <div className="relative">
+              {/* 주요 감성 정보 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    관심 종목 뉴스 감성
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-bold text-white">{watchlistSentiment.icon}</span>
+                    <span className="text-xl font-bold text-white">{watchlistSentiment.label}</span>
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    최근 뉴스 {watchlistNews.length}건 기준
+                  </p>
                 </div>
-                <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  최근 뉴스 {watchlistNews.length}건 기준
-                </p>
               </div>
 
-              <div className="flex gap-4 text-sm">
-                <div className="text-center">
-                  <p className="font-bold text-lg text-white">
+              {/* 감성 통계 — 항상 아래에 가로 배치 */}
+              <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.18)' }}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-white">
                     {watchlistNews.filter(n => n.sentimentLabel === 'POSITIVE').length}
-                  </p>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>긍정</p>
+                  </span>
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>긍정</span>
                 </div>
-                <div className="text-center">
-                  <p className="font-bold text-lg text-white">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-white">
                     {watchlistNews.filter(n => n.sentimentLabel === 'NEGATIVE').length}
-                  </p>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>부정</p>
+                  </span>
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>부정</span>
                 </div>
-                <div className="text-center">
-                  <p className="font-bold text-lg text-white">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-white">
                     {watchlistNews.filter(n => n.sentimentLabel === 'NEUTRAL').length}
-                  </p>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>중립</p>
+                  </span>
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>중립</span>
                 </div>
               </div>
             </div>
