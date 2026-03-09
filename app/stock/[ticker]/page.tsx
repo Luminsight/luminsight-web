@@ -157,7 +157,7 @@ export default function StockDetailPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%' }}>
 
       {/* ── 상단 헤더 ───────────────────────────────────────── */}
       <header
@@ -411,11 +411,13 @@ export default function StockDetailPage() {
           <div className="space-y-3">
             {/* 필터 */}
             {!loading && news.length > 0 && (
-              <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px' }}>
-                <TabBtn active={filter === 'ALL'}      onClick={() => setFilter('ALL')}>전체 ({stats.total})</TabBtn>
-                <TabBtn active={filter === 'POSITIVE'} onClick={() => setFilter('POSITIVE')} color="#22c55e">긍정 ({stats.positive})</TabBtn>
-                <TabBtn active={filter === 'NEGATIVE'} onClick={() => setFilter('NEGATIVE')} color="#f43f5e">부정 ({stats.negative})</TabBtn>
-                <TabBtn active={filter === 'NEUTRAL'}  onClick={() => setFilter('NEUTRAL')}  color="#8b8fa8">중립 ({stats.neutral})</TabBtn>
+              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+                <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
+                  <TabBtn active={filter === 'ALL'}      onClick={() => setFilter('ALL')}>전체 ({stats.total})</TabBtn>
+                  <TabBtn active={filter === 'POSITIVE'} onClick={() => setFilter('POSITIVE')} color="#22c55e">긍정 ({stats.positive})</TabBtn>
+                  <TabBtn active={filter === 'NEGATIVE'} onClick={() => setFilter('NEGATIVE')} color="#f43f5e">부정 ({stats.negative})</TabBtn>
+                  <TabBtn active={filter === 'NEUTRAL'}  onClick={() => setFilter('NEUTRAL')}  color="#8b8fa8">중립 ({stats.neutral})</TabBtn>
+                </div>
               </div>
             )}
 

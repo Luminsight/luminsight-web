@@ -349,7 +349,7 @@ export default function ComparePage() {
   const isBWinner = scoreBValue > scoreAValue && scoreBValue >= 0
 
   return (
-    <div style={{ background: '#f5f4fa', minHeight: '100vh', paddingTop: '24px', paddingBottom: '24px', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ background: '#f5f4fa', minHeight: '100vh', paddingTop: '24px', paddingBottom: '24px', width: '100%' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
         <div className="mb-6">

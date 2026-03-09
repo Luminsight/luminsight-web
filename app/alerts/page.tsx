@@ -542,7 +542,7 @@ export default function AlertsPage() {
   const highCount   = alerts.filter(a => a.severity === 'CRITICAL').length
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%' }}>
 
       {/* ── 헤더 ──────────────────────────────────────────── */}
       <header

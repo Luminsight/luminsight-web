@@ -856,7 +856,7 @@ export default function JournalPage() {
   const contraryCount = entries.filter(e => e.signalMatched === false).length
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: '#f5f4fa' }}>
+    <div className="min-h-screen w-full" style={{ background: '#f5f4fa' }}>
       {/* 헤더 */}
       <div className="sticky top-0 z-30 px-4 sm:px-6 py-3 sm:py-4"
         style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', boxShadow: '0 1px 6px rgba(139,127,212,0.06)' }}>
