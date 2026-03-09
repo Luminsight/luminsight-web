@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
+import BottomNav from './BottomNav'
 import DisclaimerModal from './DisclaimerModal'
 import { useAuth } from '@/context/AuthContext'
 
@@ -35,12 +36,13 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
       <DisclaimerModal />
       <div className="flex min-h-screen">
         <Sidebar />
-        <div className="flex-1 lg:ml-[260px] flex flex-col">
+        {/* 모바일: 하단 네비 + 안전 영역 패딩 / 데스크탑: 사이드바 마진 */}
+        <div className="flex-1 lg:ml-[260px] flex flex-col pb-[60px] lg:pb-0">
           <div className="flex-1">
             {children}
           </div>
           <footer
-            className="px-6 py-4 text-center"
+            className="hidden lg:block px-6 py-4 text-center"
             style={{ borderTop: '1px solid #f0ecfb', background: '#faf9fe' }}
           >
             <p className="text-xs" style={{ color: '#b0accc' }}>
@@ -58,6 +60,8 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
           </footer>
         </div>
       </div>
+      {/* 모바일 하단 탭 네비게이션 */}
+      <BottomNav />
     </>
   )
 }
