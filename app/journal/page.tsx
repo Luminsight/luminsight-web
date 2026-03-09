@@ -512,6 +512,312 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 }
 
 // ──────────────────────────────────────────────
+// 내 패턴 탭 (인사이트)
+// ──────────────────────────────────────────────
+
+const SENTIMENT_META: Record<string, { emoji: string; label: string; color: string; bg: string }> = {
+  POSITIVE: { emoji: '📈', label: '긍정',  color: '#f43f5e', bg: '#fff1f3' },
+  NEGATIVE: { emoji: '📉', label: '부정',  color: '#3b82f6', bg: '#eff6ff' },
+  NEUTRAL:  { emoji: '➡️', label: '중립',  color: '#8b7fd4', bg: '#f5f4fd' },
+}
+
+function RingChart({ rate, size = 80, strokeWidth = 9 }: { rate: number; size?: number; strokeWidth?: number }) {
+  const r = (size - strokeWidth) / 2
+  const circ = 2 * Math.PI * r
+  const filled = circ * rate
+  const cx = size / 2
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="#ece9f5" strokeWidth={strokeWidth} />
+      <circle
+        cx={cx} cy={cx} r={r} fill="none"
+        stroke={rate >= 0.7 ? '#8b7fd4' : rate >= 0.4 ? '#f59e0b' : '#f43f5e'}
+        strokeWidth={strokeWidth}
+        strokeDasharray={`${filled} ${circ}`}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.6s ease' }}
+      />
+    </svg>
+  )
+}
+
+function InsightsTab({ entries, portfolio }: { entries: JournalEntry[]; portfolio: PositionSummary[] }) {
+  // ── 빈 상태 ──
+  if (entries.length < 3) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 rounded-2xl gap-6"
+        style={{ background: '#ffffff', boxShadow: '0 2px 12px rgba(139,127,212,0.08)' }}>
+        <div className="text-5xl">🔍</div>
+        <div className="text-center">
+          <p className="font-semibold text-gray-700 mb-1">아직 데이터가 부족해요</p>
+          <p className="text-sm text-gray-400">매매 기록 3건 이상이면 패턴을 분석할 수 있어요</p>
+        </div>
+        {/* 미리보기 카드 */}
+        <div className="w-full max-w-sm px-4 space-y-3">
+          {[
+            { icon: '🤖', title: 'AI 신호 일치율', desc: 'AI가 추천한 방향으로 몇 번이나 매매했나요?' },
+            { icon: '📊', title: '감성별 수익 패턴', desc: '어떤 시장 감성에서 수익이 났나요?' },
+            { icon: '💡', title: '인사이트 요약', desc: '나만의 투자 성향을 텍스트로 분석해요' },
+          ].map(({ icon, title, desc }) => (
+            <div key={title} className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ background: '#f8f7fd', border: '1px dashed #d0cbee' }}>
+              <span className="text-xl">{icon}</span>
+              <div>
+                <p className="text-xs font-semibold text-gray-600">{title}</p>
+                <p className="text-xs text-gray-400">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400">현재 {entries.length}건 / 3건 필요</p>
+      </div>
+    )
+  }
+
+  // ── 집계 ──
+
+  // 1) AI 신호 일치율
+  const signalEntries   = entries.filter(e => e.signalMatched !== null && e.signalMatched !== undefined)
+  const matchedCount    = signalEntries.filter(e => e.signalMatched === true).length
+  const overallRate     = signalEntries.length > 0 ? matchedCount / signalEntries.length : null
+
+  // 2) 감성별 패턴
+  type SentimentStat = { count: number; buy: number; sell: number; pnlSum: number; pnlCount: number }
+  const bysentiment: Record<string, SentimentStat> = {}
+  for (const e of entries) {
+    const key = e.sentimentLabel ?? 'NEUTRAL'
+    if (!bysentiment[key]) bysentiment[key] = { count: 0, buy: 0, sell: 0, pnlSum: 0, pnlCount: 0 }
+    bysentiment[key].count++
+    if (e.tradeType === 'BUY') bysentiment[key].buy++
+    else bysentiment[key].sell++
+    if (e.realizedPnl != null) { bysentiment[key].pnlSum += e.realizedPnl; bysentiment[key].pnlCount++ }
+  }
+  const sentimentKeys = Object.keys(bysentiment).sort((a, b) => bysentiment[b].count - bysentiment[a].count)
+
+  // 3) 가장 수익이 좋은 감성
+  let bestSentiment: string | null = null
+  let bestAvg = -Infinity
+  for (const k of sentimentKeys) {
+    const s = bysentiment[k]
+    if (s.pnlCount > 0) {
+      const avg = s.pnlSum / s.pnlCount
+      if (avg > bestAvg) { bestAvg = avg; bestSentiment = k }
+    }
+  }
+
+  // 4) 종목별 일치율 (portfolio에서)
+  const tickerRates = portfolio
+    .filter(p => p.signalMatchRate != null)
+    .sort((a, b) => (b.signalMatchRate ?? 0) - (a.signalMatchRate ?? 0))
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── 섹션 1: AI 신호 일치율 ── */}
+      <div style={CARD}>
+        <h3 className="text-sm font-bold mb-4" style={{ color: '#18162a' }}>🤖 AI 신호 일치율</h3>
+
+        {overallRate === null ? (
+          <p className="text-sm text-gray-400">AI 신호가 기록된 매매가 없습니다.</p>
+        ) : (
+          <>
+            {/* 전체 */}
+            <div className="flex items-center gap-6 mb-5">
+              <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 80, height: 80 }}>
+                <RingChart rate={overallRate} />
+                <span className="absolute text-base font-bold" style={{ color: '#18162a' }}>
+                  {Math.round(overallRate * 100)}%
+                </span>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">전체 일치율</p>
+                <p className="text-2xl font-bold mb-1" style={{ color: overallRate >= 0.7 ? '#8b7fd4' : overallRate >= 0.4 ? '#f59e0b' : '#f43f5e' }}>
+                  {Math.round(overallRate * 100)}%
+                </p>
+                <p className="text-xs" style={{ color: '#9e9ab8' }}>
+                  {matchedCount}건 일치 / {signalEntries.length}건 기록
+                </p>
+                <p className="text-xs mt-1 font-medium" style={{
+                  color: overallRate >= 0.7 ? '#8b7fd4' : overallRate >= 0.4 ? '#d97706' : '#f43f5e'
+                }}>
+                  {overallRate >= 0.7 ? '✨ AI 신호를 잘 따르고 있어요!'
+                    : overallRate >= 0.4 ? '⚠️ AI 신호와 반대 매매가 많아요'
+                    : '❌ AI 신호를 자주 역행하고 있어요'}
+                </p>
+              </div>
+            </div>
+
+            {/* 종목별 바 */}
+            {tickerRates.length > 0 && (
+              <div className="space-y-2.5">
+                <p className="text-xs text-gray-400 mb-2">종목별 일치율</p>
+                {tickerRates.map(p => (
+                  <div key={p.ticker}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-semibold" style={{ color: '#18162a' }}>{p.ticker}</span>
+                      <span className="text-xs font-semibold" style={{
+                        color: (p.signalMatchRate ?? 0) >= 0.7 ? '#8b7fd4'
+                          : (p.signalMatchRate ?? 0) >= 0.4 ? '#f59e0b' : '#f43f5e'
+                      }}>
+                        {Math.round((p.signalMatchRate ?? 0) * 100)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full" style={{ background: '#ece9f5' }}>
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${Math.round((p.signalMatchRate ?? 0) * 100)}%`,
+                        background: (p.signalMatchRate ?? 0) >= 0.7 ? '#8b7fd4'
+                          : (p.signalMatchRate ?? 0) >= 0.4 ? '#f59e0b' : '#f43f5e',
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── 섹션 2: 감성별 매매 패턴 ── */}
+      <div style={CARD}>
+        <h3 className="text-sm font-bold mb-4" style={{ color: '#18162a' }}>📊 감성별 매매 패턴</h3>
+
+        {sentimentKeys.length === 0 ? (
+          <p className="text-sm text-gray-400">감성 스냅샷이 기록된 매매가 없습니다.</p>
+        ) : (
+          <div className="space-y-3">
+            {sentimentKeys.map(key => {
+              const s = bysentiment[key]
+              const meta = SENTIMENT_META[key] ?? SENTIMENT_META['NEUTRAL']
+              const avgPnl = s.pnlCount > 0 ? s.pnlSum / s.pnlCount : null
+              const buyPct = s.count > 0 ? (s.buy / s.count) : 0
+              return (
+                <div key={key} className="rounded-xl p-4" style={{ background: meta.bg, border: `1px solid ${meta.color}22` }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{meta.emoji}</span>
+                      <span className="text-sm font-bold" style={{ color: meta.color }}>{meta.label} 감성</span>
+                      {key === bestSentiment && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                          style={{ background: '#fef3c7', color: '#92400e' }}>
+                          최고 수익
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">{s.count}건</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* 매수/매도 비율 */}
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1.5">매수 비율</p>
+                      <div className="h-1.5 rounded-full mb-1" style={{ background: '#e5e7eb' }}>
+                        <div className="h-full rounded-full" style={{ width: `${buyPct * 100}%`, background: '#22c55e' }} />
+                      </div>
+                      <p className="text-xs font-semibold text-gray-600">
+                        매수 {s.buy} / 매도 {s.sell}
+                      </p>
+                    </div>
+
+                    {/* 평균 실현 손익 */}
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">평균 손익</p>
+                      {avgPnl != null ? (
+                        <p className="text-sm font-bold" style={{ color: avgPnl >= 0 ? '#22c55e' : '#f43f5e' }}>
+                          {avgPnl >= 0 ? '+' : ''}{fmt.amount(avgPnl)}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400">–</p>
+                      )}
+                    </div>
+
+                    {/* 누적 손익 */}
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">누적 손익</p>
+                      {s.pnlCount > 0 ? (
+                        <p className="text-sm font-bold" style={{ color: s.pnlSum >= 0 ? '#22c55e' : '#f43f5e' }}>
+                          {s.pnlSum >= 0 ? '+' : ''}{fmt.amount(s.pnlSum)}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-400">–</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── 섹션 3: 인사이트 요약 ── */}
+      <div style={CARD}>
+        <h3 className="text-sm font-bold mb-3" style={{ color: '#18162a' }}>💡 인사이트 요약</h3>
+        <div className="space-y-2">
+          {/* AI 신호 */}
+          {overallRate !== null && (
+            <div className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+              <span className="mt-0.5 flex-shrink-0">
+                {overallRate >= 0.7 ? '✅' : overallRate >= 0.4 ? '⚠️' : '🔴'}
+              </span>
+              <span>
+                {overallRate >= 0.7
+                  ? `AI 신호를 ${Math.round(overallRate * 100)}%의 높은 일치율로 따르고 있어요. 체계적인 투자를 하고 있어요!`
+                  : overallRate >= 0.4
+                  ? `AI 신호와 ${Math.round((1 - overallRate) * 100)}%의 매매가 반대 방향이에요. 신호를 더 참고해보세요.`
+                  : `AI 신호를 자주 역행하고 있어요. 감성 분석 결과를 더 적극적으로 활용해보세요.`}
+              </span>
+            </div>
+          )}
+
+          {/* 감성 패턴 */}
+          {bestSentiment && bysentiment[bestSentiment].pnlCount > 0 && (
+            <div className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+              <span className="mt-0.5 flex-shrink-0">📈</span>
+              <span>
+                <strong style={{ color: SENTIMENT_META[bestSentiment]?.color }}>
+                  {SENTIMENT_META[bestSentiment]?.label} 감성
+                </strong>
+                {' '}일 때 평균 <strong style={{ color: '#22c55e' }}>+{fmt.amount(bestAvg)}</strong>로 가장 높은 수익을 기록했어요.
+              </span>
+            </div>
+          )}
+
+          {/* 역행 매매 */}
+          {(() => {
+            const contraryCount = entries.filter(e => e.signalMatched === false).length
+            if (contraryCount === 0) return null
+            return (
+              <div className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+                <span className="mt-0.5 flex-shrink-0">⚠️</span>
+                <span>
+                  총 <strong className="text-amber-600">{contraryCount}건</strong>의 AI 역행 매매가 있어요. 역행 시 손실이 발생했는지 확인해보세요.
+                </span>
+              </div>
+            )
+          })()}
+
+          {/* 가장 많이 거래한 감성 */}
+          {sentimentKeys.length > 0 && (() => {
+            const topKey = sentimentKeys[0]
+            const topMeta = SENTIMENT_META[topKey] ?? SENTIMENT_META['NEUTRAL']
+            const topPct = Math.round((bysentiment[topKey].count / entries.length) * 100)
+            return (
+              <div className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+                <span className="mt-0.5 flex-shrink-0">{topMeta.emoji}</span>
+                <span>
+                  매매의 <strong>{topPct}%</strong>가{' '}
+                  <strong style={{ color: topMeta.color }}>{topMeta.label} 감성</strong> 구간에서 이루어졌어요.
+                </span>
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────
 // 메인 페이지
 // ──────────────────────────────────────────────
 
@@ -521,7 +827,7 @@ export default function JournalPage() {
   const [loading, setLoading]       = useState(true)
   const [showAdd, setShowAdd]       = useState(false)
   const [filterTicker, setFilterTicker] = useState('')
-  const [activeTab, setActiveTab]   = useState<'list' | 'portfolio'>('list')
+  const [activeTab, setActiveTab]   = useState<'list' | 'portfolio' | 'insights'>('list')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -599,16 +905,20 @@ export default function JournalPage() {
 
         {/* 탭 */}
         <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: '#ece9f5' }}>
-          {(['list', 'portfolio'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+          {([
+            { key: 'list',      label: '매매 기록' },
+            { key: 'portfolio', label: '포지션 요약' },
+            { key: 'insights',  label: '내 패턴' },
+          ] as { key: 'list' | 'portfolio' | 'insights'; label: string }[]).map(({ key, label }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
-                background: activeTab === tab ? '#ffffff' : 'transparent',
-                color:      activeTab === tab ? '#8b7fd4' : '#9e9ab8',
-                fontWeight: activeTab === tab ? 600 : 400,
-                boxShadow:  activeTab === tab ? '0 1px 4px rgba(139,127,212,0.15)' : 'none',
+                background: activeTab === key ? '#ffffff' : 'transparent',
+                color:      activeTab === key ? '#8b7fd4' : '#9e9ab8',
+                fontWeight: activeTab === key ? 600 : 400,
+                boxShadow:  activeTab === key ? '0 1px 4px rgba(139,127,212,0.15)' : 'none',
               }}>
-              {tab === 'list' ? '매매 기록' : '포지션 요약'}
+              {label}
             </button>
           ))}
         </div>
@@ -681,6 +991,19 @@ export default function JournalPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {portfolio.map(p => <PositionCard key={p.ticker} pos={p} />)}
             </div>
+          )
+        )}
+
+        {/* ── 내 패턴 탭 ── */}
+        {activeTab === 'insights' && (
+          loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: '#e9e6f5' }} />
+              ))}
+            </div>
+          ) : (
+            <InsightsTab entries={entries} portfolio={portfolio} />
           )
         )}
       </main>
