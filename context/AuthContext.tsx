@@ -17,6 +17,7 @@ interface AuthContextValue {
   isLoading: boolean
   isAuthenticated: boolean
   login: () => void
+  loginWithKakao: () => void
   logout: () => void
   setTokenAndFetchUser: (token: string) => Promise<void>
 }
@@ -86,6 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /**
+   * Kakao 로그인 시작: 백엔드 OAuth2 진입점으로 리다이렉트
+   */
+  const loginWithKakao = useCallback(() => {
+    window.location.href = `${API_BASE}/oauth2/authorization/kakao`
+  }, [])
+
+  /**
    * 로그아웃: 토큰 삭제 + 로그인 페이지로 이동
    */
   const logout = useCallback(() => {
@@ -100,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticated: user !== null,
       login,
+      loginWithKakao,
       logout,
       setTokenAndFetchUser,
     }}>
