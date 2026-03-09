@@ -348,7 +348,7 @@ function LandingPage({ news }: { news: News[] }) {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%' }}>
 
       {/* ── 네비 ──────────────────────────────────────────────── */}
       <header style={{ background: '#ffffff', borderBottom: '1px solid #ece9f5', position: 'sticky', top: 0, zIndex: 30 }}>
@@ -695,7 +695,7 @@ export default function DashboardPage() {
   })()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%' }}>
 
       {/* ── 온보딩 플로우 ───────────────────────────────────── */}
       {showOnboarding && (
@@ -893,7 +893,7 @@ export default function DashboardPage() {
 
           {watchlistLoaded ? (
             watchlist.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}>
                 {watchlist.map(ticker => (
                   <WatchlistCard
                     key={ticker}
