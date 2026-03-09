@@ -174,22 +174,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* 모바일 햄버거 */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-xl shadow-sm"
-        style={{ border: '1px solid #ece9f5' }}
-        aria-label="메뉴 토글"
-      >
-        <span style={{ color: '#5e5a78' }}>{isOpen ? Icons.close : Icons.menu}</span>
-      </button>
-
-      {/* 모바일 알림 벨 */}
-      {isAuthenticated && <MobileAlertBell unreadCount={unreadCount} />}
-
-      {isOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/30 z-40" onClick={() => setIsOpen(false)} />
-      )}
+      {/* 모바일에서는 BottomNav가 네비게이션 담당 — 햄버거/벨 숨김 */}
 
       {/* 사이드바 본체 */}
       <aside
