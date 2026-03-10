@@ -32,6 +32,18 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray
 }
 
+// ── ServiceWorker ready (타임아웃 포함) ───────────────────
+// iOS 등에서 SW 설치 실패 시 navigator.serviceWorker.ready가
+// 영원히 pending 상태로 남아 있는 버그 방지
+function swReady(timeoutMs = 8000): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('서비스 워커 준비 시간 초과')), timeoutMs)
+    ),
+  ])
+}
+
 // ── 타입 ─────────────────────────────────────────────────
 interface Props {
   onComplete: (selectedTickers: string[]) => void
@@ -59,7 +71,8 @@ export default function OnboardingFlow({ onComplete }: Props) {
   const [selected, setSelected]     = useState<Set<string>>(new Set())
   const [customInput, setCustomInput] = useState('')
   const [saving, setSaving]         = useState(false)
-  const [pushState, setPushState]   = useState<'idle' | 'loading' | 'done' | 'denied'>('idle')
+  const [pushState, setPushState]   = useState<'idle' | 'loading' | 'done' | 'denied' | 'error'>('idle')
+  const [pushError, setPushError]   = useState<string | null>(null)
   const [animating, setAnimating]   = useState(false)
 
   // 애니메이션과 함께 다음 단계로
@@ -104,10 +117,12 @@ export default function OnboardingFlow({ onComplete }: Props) {
   // Step 3 푸시 알림 구독
   const handleEnablePush = async () => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      // 브라우저가 알림을 지원하지 않으면 바로 완료 처리
       handleFinish()
       return
     }
     setPushState('loading')
+    setPushError(null)
     try {
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
@@ -116,7 +131,8 @@ export default function OnboardingFlow({ onComplete }: Props) {
       }
       const { data } = await api.get<{ publicKey: string }>('/push/vapid-public-key')
       const applicationServerKey = urlBase64ToUint8Array(data.publicKey)
-      const reg = await navigator.serviceWorker.ready
+      // swReady(): 타임아웃 포함 — iOS에서 SW 설치 실패 시 무한 대기 방지
+      const reg = await swReady(8000)
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
       const subJson = sub.toJSON()
       await api.post('/push/subscribe', {
@@ -127,8 +143,10 @@ export default function OnboardingFlow({ onComplete }: Props) {
       })
       setPushState('done')
       setTimeout(handleFinish, 1200)
-    } catch {
-      setPushState('idle')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '알 수 없는 오류'
+      setPushError(msg)
+      setPushState('error')
     }
   }
 
@@ -314,6 +332,14 @@ export default function OnboardingFlow({ onComplete }: Props) {
               <div className="mb-6 p-4 rounded-2xl text-sm" style={{ background: '#fef3c7', color: '#92400e' }}>
                 브라우저 설정에서 알림을 허용해주세요. 나중에 알림 설정 탭에서도 켤 수 있습니다.
               </div>
+            ) : pushState === 'error' ? (
+              <div className="mb-6 p-4 rounded-2xl text-sm" style={{ background: '#fff1f3', color: '#be123c' }}>
+                <p className="font-semibold mb-1">알림 설정에 실패했습니다</p>
+                <p className="text-xs" style={{ color: '#9e9ab8' }}>{pushError}</p>
+                <p className="text-xs mt-2" style={{ color: '#be123c' }}>
+                  나중에 설정 탭에서 다시 시도할 수 있습니다.
+                </p>
+              </div>
             ) : (
               <div className="mb-6 space-y-2 text-left">
                 {[
@@ -335,7 +361,11 @@ export default function OnboardingFlow({ onComplete }: Props) {
               className="w-full py-3.5 rounded-2xl text-sm font-bold text-white mb-3 transition-all disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #8b7fd4, #6a5fc4)', boxShadow: '0 4px 16px rgba(139,127,212,0.3)' }}
             >
-              {pushState === 'loading' ? '설정 중...' : '🔔 알림 받기'}
+              {pushState === 'loading'
+                ? '설정 중...'
+                : pushState === 'error'
+                ? '🔔 다시 시도'
+                : '🔔 알림 받기'}
             </button>
             <button
               onClick={handleFinish}
@@ -368,10 +398,13 @@ export default function OnboardingFlow({ onComplete }: Props) {
         }}
       >
         {/* 단계 인디케이터 */}
-        <div className="flex items-center justify-center gap-1.5 mb-6">
-          <StepDot active={step === 1} done={step > 1} />
-          <StepDot active={step === 2} done={step > 2} />
-          <StepDot active={step === 3} done={step > 3} />
+        <div className="flex flex-col items-center gap-1.5 mb-6">
+          <div className="flex items-center gap-1.5">
+            <StepDot active={step === 1} done={step > 1} />
+            <StepDot active={step === 2} done={step > 2} />
+            <StepDot active={step === 3} done={step > 3} />
+          </div>
+          <p className="text-xs" style={{ color: '#c4c0d8' }}>{step} / 3단계</p>
         </div>
 
         {content}
