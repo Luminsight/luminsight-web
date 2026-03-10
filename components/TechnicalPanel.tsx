@@ -209,7 +209,7 @@ function ComponentBar({ comp }: { comp: ComponentScore }) {
       </div>
       <div className="flex justify-between" style={{ fontSize: 10 }}>
         <span style={{ color: '#b0accc' }}>◀ 약세</span>
-        <span className="flex-1 text-center truncate px-2" style={{ color: '#9e9ab8' }}>{comp.description}</span>
+        <span className="flex-1 text-center truncate min-w-0 px-2" style={{ color: '#9e9ab8' }}>{comp.description}</span>
         <span style={{ color: '#b0accc' }}>강세 ▶</span>
       </div>
     </div>

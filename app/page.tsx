@@ -169,8 +169,8 @@ function NewsFeedItem({ news, isPriority, onTickerClick }: NewsFeedItemProps) {
           textDecoration: 'none',
         }}
       >
-        <div className="flex items-start gap-3">
-          <div>
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="min-w-0 flex-1">
             {/* 헤더 */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <button
@@ -227,7 +227,7 @@ function NewsFeedItem({ news, isPriority, onTickerClick }: NewsFeedItemProps) {
       href={news.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 hover:bg-gray-50"
+      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 hover:bg-gray-50 overflow-hidden"
       style={{ textDecoration: 'none', border: '1px solid #f3f1fa' }}
     >
       <button
@@ -245,7 +245,7 @@ function NewsFeedItem({ news, isPriority, onTickerClick }: NewsFeedItemProps) {
         {news.sentimentLabel === 'POSITIVE' ? '↑' : news.sentimentLabel === 'NEGATIVE' ? '↓' : '−'}
       </span>
 
-      <p className="text-sm flex-1 truncate" style={{ color: '#18162a' }}>
+      <p className="text-sm flex-1 truncate min-w-0" style={{ color: '#18162a' }}>
         {news.titleKo || news.title}
       </p>
 
@@ -695,7 +695,7 @@ export default function DashboardPage() {
   })()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%', overflowX: 'hidden' }}>
 
       {/* ── 온보딩 플로우 ───────────────────────────────────── */}
       {showOnboarding && (
@@ -936,7 +936,7 @@ export default function DashboardPage() {
               {topSignals.map(news => (
                 <div
                   key={news.id}
-                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors hover:bg-gray-50"
+                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors hover:bg-gray-50 overflow-hidden"
                   onClick={() => goToStock(news.ticker)}
                   style={{ border: `1px solid ${sentimentColor(news.sentimentLabel)}20` }}
                 >
@@ -947,7 +947,7 @@ export default function DashboardPage() {
                     {news.ticker}
                   </span>
 
-                  <p className="text-sm flex-1 truncate" style={{ color: '#18162a' }}>
+                  <p className="text-sm flex-1 truncate min-w-0" style={{ color: '#18162a' }}>
                     {news.titleKo || news.title}
                   </p>
 

@@ -37,8 +37,8 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
       <div className="flex min-h-screen">
         <Sidebar />
         {/* 모바일: 하단 네비 + 안전 영역 패딩 / 데스크탑: 사이드바 마진 */}
-        <div className="flex-1 lg:ml-[260px] flex flex-col pb-[60px] lg:pb-0">
-          <div className="flex-1">
+        <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col pb-[60px] lg:pb-0 overflow-x-hidden">
+          <div className="flex-1 min-w-0">
             {children}
           </div>
           <footer
