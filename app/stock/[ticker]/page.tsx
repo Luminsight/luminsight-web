@@ -58,6 +58,7 @@ export default function StockDetailPage() {
   const [filteredNews, setFilteredNews] = useState<News[]>([])
   const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState<string | null>(null)
+  const [lastFetched, setLastFetched] = useState<Date | null>(null)
   const [filter, setFilter]         = useState<SentimentFilter>('ALL')
   const [isKorean, setIsKorean]     = useState(true)
   const [activeTab, setActiveTab]   = useState<DetailTab>('overview')
@@ -89,6 +90,7 @@ export default function StockDetailPage() {
     try {
       const data = await newsApi.getNewsByTicker(sym, 50)
       setNews(data); setFilteredNews(data)
+      setLastFetched(new Date())
       if (data.length > 0) fetchSummary(sym)
     } catch {
       setError('뉴스를 불러오는데 실패했습니다.')
@@ -186,7 +188,19 @@ export default function StockDetailPage() {
             </div>
             <div>
               <p className="font-bold text-sm sm:text-base" style={{ color: '#18162a' }}>{ticker}</p>
-              <p className="text-xs hidden sm:block" style={{ color: '#9e9ab8' }}>뉴스 감성 분석</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs hidden sm:block" style={{ color: '#9e9ab8' }}>뉴스 감성 분석</p>
+                {lastFetched && (
+                  <span
+                    className="hidden sm:inline text-xs px-2 py-0.5 rounded-full"
+                    style={{ background: '#f0eefb', color: '#8b7fd4', border: '1px solid #d4cff2' }}
+                  >
+                    🕒 {Math.floor((Date.now() - lastFetched.getTime()) / 60000) < 1
+                      ? '방금 수집'
+                      : `${Math.floor((Date.now() - lastFetched.getTime()) / 60000)}분 전 수집`}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* 티커 변경 검색바 — 모바일 숨김 */}

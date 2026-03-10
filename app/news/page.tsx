@@ -188,6 +188,8 @@ export default function NewsPage() {
 
   const [allNews, setAllNews]     = useState<News[]>([])
   const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
+  const [lastFetched, setLastFetched] = useState<Date | null>(null)
   const [sentiment, setSentiment] = useState<SentimentFilter>('ALL')
   const [tickerQuery, setTickerQuery] = useState('')
   const [sortOrder, setSortOrder] = useState<SortOrder>('latest')
@@ -198,10 +200,14 @@ export default function NewsPage() {
   // ── 뉴스 로드 ──────────────────────────────────────────────
   const loadNews = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const data = await newsApi.getAllNews(200)
       setAllNews(data)
-    } catch {
+      setLastFetched(new Date())
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '알 수 없는 오류'
+      setError(`뉴스를 불러오지 못했습니다. (${msg})`)
       setAllNews([])
     } finally {
       setLoading(false)
@@ -244,7 +250,17 @@ export default function NewsPage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p className="font-bold text-base" style={{ color: '#18162a' }}>📰 뉴스 피드</p>
-            <p className="text-xs" style={{ color: '#9e9ab8' }}>전체 뉴스 탐색</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-xs" style={{ color: '#9e9ab8' }}>전체 뉴스 탐색</p>
+              {lastFetched && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{ background: '#f0eefb', color: '#8b7fd4', border: '1px solid #d4cff2' }}
+                >
+                  🕒 {timeAgo(lastFetched.toISOString())} 수집
+                </span>
+              )}
+            </div>
           </div>
 
           {/* 티커 검색 */}
@@ -353,6 +369,29 @@ export default function NewsPage() {
           </div>
         )}
 
+        {/* 에러 배너 */}
+        {error && (
+          <div
+            className="flex items-center justify-between gap-3 px-5 py-4 rounded-2xl"
+            style={{ background: '#fff1f3', border: '1.5px solid rgba(244,63,94,0.2)' }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg">⚠️</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#f43f5e' }}>데이터 로드 실패</p>
+                <p className="text-xs mt-0.5" style={{ color: '#9e9ab8' }}>{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={loadNews}
+              className="px-4 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all"
+              style={{ background: '#f43f5e', color: '#fff' }}
+            >
+              재시도
+            </button>
+          </div>
+        )}
+
         {/* 뉴스 목록 */}
         {loading ? (
           <div className="space-y-3">
@@ -361,7 +400,7 @@ export default function NewsPage() {
                 style={{ height: 88, background: '#f3f1fa' }} />
             ))}
           </div>
-        ) : visibleNews.length === 0 ? (
+        ) : !error && visibleNews.length === 0 ? (
           <div style={{ ...CARD, textAlign: 'center', paddingTop: 48, paddingBottom: 48 }}>
             <p className="text-4xl mb-3">🔍</p>
             <p className="font-medium" style={{ color: '#5e5a78' }}>조건에 맞는 뉴스가 없습니다.</p>

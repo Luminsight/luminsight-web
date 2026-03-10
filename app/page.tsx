@@ -568,6 +568,7 @@ export default function DashboardPage() {
   const [isEmptyWatchlist, setIsEmptyWatchlist] = useState(false)  // 온보딩 트리거
   const [allNews, setAllNews]               = useState<News[]>([])
   const [newsLoading, setNewsLoading]       = useState(false)
+  const [newsError, setNewsError]           = useState<string | null>(null)
   const [showCount, setShowCount]           = useState(10)
   const [recentAlerts, setRecentAlerts]     = useState<Alert[]>([])
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -600,10 +601,12 @@ export default function DashboardPage() {
   // ── 전체 뉴스 로드 ────────────────────────────────────────
   const loadAllNews = useCallback(async () => {
     setNewsLoading(true)
+    setNewsError(null)
     try {
       const data = await newsApi.getAllNews(100)
       setAllNews(data)
     } catch {
+      setNewsError('뉴스 데이터를 불러오지 못했습니다.')
       setAllNews([])
     } finally {
       setNewsLoading(false)
@@ -1028,6 +1031,25 @@ export default function DashboardPage() {
             </span>
           </div>
 
+          {newsError && (
+            <div
+              className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl mb-3"
+              style={{ background: '#fff1f3', border: '1.5px solid rgba(244,63,94,0.2)' }}
+            >
+              <div className="flex items-center gap-2">
+                <span>⚠️</span>
+                <p className="text-xs" style={{ color: '#f43f5e' }}>{newsError}</p>
+              </div>
+              <button
+                onClick={loadAllNews}
+                className="text-xs font-bold px-3 py-1 rounded-lg shrink-0"
+                style={{ background: '#f43f5e', color: '#fff' }}
+              >
+                재시도
+              </button>
+            </div>
+          )}
+
           {newsLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -1039,7 +1061,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          ) : orderedNews.length === 0 ? (
+          ) : !newsError && orderedNews.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm" style={{ color: '#9e9ab8' }}>뉴스가 없습니다.</p>
             </div>
