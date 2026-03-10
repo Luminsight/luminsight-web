@@ -285,15 +285,14 @@ export const tradingApi = {
 }
 
 export const stockApi = {
-  // 지원 종목 목록 (추후 백엔드 API 연동 예정)
+  // 지원 종목 목록 — GET /api/stocks/supported → { count, tickers: [{ticker}] }
   getSupportedTickers: async (): Promise<string[]> => {
     try {
-      const response = await api.get('/stocks/supported')
-      return response.data
+      const response = await api.get<{ count: number; tickers: { ticker: string }[] }>('/stocks/supported')
+      return response.data.tickers.map((t) => t.ticker)
     } catch {
-      // 백엔드 미구현 시 기본 종목 반환
-      return ['AAPL', 'TSLA', 'NVDA', 'GOOGL', 'MSFT', 'AMZN', 'META',
-              'NFLX', 'AMD', 'INTC', 'BABA', 'SHOP', 'SPOT', 'UBER', 'LYFT']
+      // 백엔드 응답 실패 시 기본 종목 폴백
+      return ['AAPL', 'TSLA', 'NVDA', 'GOOGL', 'MSFT', 'AMZN', 'META']
     }
   },
 }

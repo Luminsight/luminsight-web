@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { journalApi, tradingApi } from '@/lib/api'
+import { journalApi, tradingApi, stockApi } from '@/lib/api'
 import type { JournalEntry, CreateJournalRequest, PositionSummary, InvestOpinion, TradeType, SentimentLabel } from '@/types'
 
 // ──────────────────────────────────────────────
 // 상수 / 헬퍼
 // ──────────────────────────────────────────────
 
-const WATCHLIST = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL', 'META', 'AMZN']
+const FALLBACK_TICKERS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL', 'META', 'AMZN']
 
 const fmt = {
   price:  (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -306,13 +306,14 @@ type FormState = {
   fetchAiSignal: boolean
 }
 
-function AddJournalModal({ onClose, onSaved, portfolio }: {
+function AddJournalModal({ onClose, onSaved, portfolio, tickers }: {
   onClose: () => void
   onSaved: () => void
   portfolio: PositionSummary[]
+  tickers: string[]
 }) {
   const [form, setForm] = useState<FormState>({
-    ticker: 'AAPL', tradeType: 'BUY', tradeDate: today(),
+    ticker: tickers[0] ?? 'AAPL', tradeType: 'BUY', tradeDate: today(),
     price: '', quantity: '', memo: '', realizedPnl: '', fetchAiSignal: true,
   })
   const [aiSignal, setAiSignal]           = useState<InvestOpinion | null>(null)
@@ -424,7 +425,7 @@ function AddJournalModal({ onClose, onSaved, portfolio }: {
                 value={form.ticker} onChange={e => set('ticker', e.target.value)}
                 className={inputCls} style={inputStyle}
               >
-                {WATCHLIST.map(t => <option key={t} value={t}>{t}</option>)}
+                {tickers.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
@@ -1244,10 +1245,18 @@ function InsightsTab({ entries, portfolio }: { entries: JournalEntry[]; portfoli
 export default function JournalPage() {
   const [entries, setEntries]       = useState<JournalEntry[]>([])
   const [portfolio, setPortfolio]   = useState<PositionSummary[]>([])
+  const [tickers, setTickers]       = useState<string[]>(FALLBACK_TICKERS)
   const [loading, setLoading]       = useState(true)
   const [showAdd, setShowAdd]       = useState(false)
   const [filterTicker, setFilterTicker] = useState('')
   const [activeTab, setActiveTab]   = useState<'list' | 'portfolio' | 'insights'>('list')
+
+  // 지원 티커 목록 초기 로드 (application.properties 기준)
+  useEffect(() => {
+    stockApi.getSupportedTickers()
+      .then(t => { if (t.length > 0) setTickers(t) })
+      .catch(() => { /* 폴백 유지 */ })
+  }, [])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -1360,7 +1369,7 @@ export default function JournalPage() {
                 }}>
                 전체
               </button>
-              {WATCHLIST.map(t => (
+              {tickers.map(t => (
                 <button key={t} onClick={() => setFilterTicker(filterTicker === t ? '' : t)}
                   className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
                   style={{
@@ -1436,6 +1445,7 @@ export default function JournalPage() {
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); loadData() }}
           portfolio={portfolio}
+          tickers={tickers}
         />
       )}
     </div>
