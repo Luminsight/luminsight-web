@@ -306,7 +306,11 @@ type FormState = {
   fetchAiSignal: boolean
 }
 
-function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function AddJournalModal({ onClose, onSaved, portfolio }: {
+  onClose: () => void
+  onSaved: () => void
+  portfolio: PositionSummary[]
+}) {
   const [form, setForm] = useState<FormState>({
     ticker: 'AAPL', tradeType: 'BUY', tradeDate: today(),
     price: '', quantity: '', memo: '', realizedPnl: '', fetchAiSignal: true,
@@ -316,6 +320,7 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const [loadingSignal, setLoadingSignal] = useState(false)
   const [saving, setSaving]               = useState(false)
   const [error, setError]                 = useState<string | null>(null)
+  const [pnlAutoCalc, setPnlAutoCalc]     = useState<{ avgBuyPrice: number; estimated: number } | null>(null)
 
   useEffect(() => {
     if (!form.fetchAiSignal) return
@@ -326,6 +331,28 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
       .catch(() => {})
       .finally(() => setLoadingSignal(false))
   }, [form.ticker, form.fetchAiSignal])
+
+  // 매도 시 실현 손익 자동 계산
+  useEffect(() => {
+    if (form.tradeType !== 'SELL') {
+      setPnlAutoCalc(null)
+      return
+    }
+    const pos = portfolio.find(p => p.ticker === form.ticker)
+    if (!pos || pos.avgBuyPrice <= 0) {
+      setPnlAutoCalc(null)
+      return
+    }
+    const price    = parseFloat(form.price)
+    const quantity = parseFloat(form.quantity)
+    if (isNaN(price) || isNaN(quantity) || price <= 0 || quantity <= 0) {
+      setPnlAutoCalc(null)
+      return
+    }
+    const estimated = (price - pos.avgBuyPrice) * quantity
+    setPnlAutoCalc({ avgBuyPrice: pos.avgBuyPrice, estimated })
+    setForm(prev => ({ ...prev, realizedPnl: estimated.toFixed(2) }))
+  }, [form.tradeType, form.ticker, form.price, form.quantity, portfolio])
 
   function set(field: keyof FormState, value: string | boolean) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -361,6 +388,14 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const inputCls = "w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all"
   const inputStyle: React.CSSProperties = {
     background: '#f8f7fd', border: '1.5px solid #ece9f5', color: '#18162a',
+  }
+  // 숫자 외 입력 차단 (e, E, +, - 방지 → 단가·수량용)
+  const noInvalidKey = (e: React.KeyboardEvent) => {
+    if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault()
+  }
+  // 실현손익은 음수 허용 (- 는 허용, e E + 만 차단)
+  const noInvalidKeyAllowNeg = (e: React.KeyboardEvent) => {
+    if (['e', 'E', '+'].includes(e.key)) e.preventDefault()
   }
 
   return (
@@ -423,12 +458,14 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
               <label className="block text-xs text-gray-400 mb-1.5">단가 ($)</label>
               <input type="number" step="0.01" min="0" placeholder="0.00"
                 value={form.price} onChange={e => set('price', e.target.value)}
+                onKeyDown={noInvalidKey}
                 className={inputCls} style={inputStyle} required />
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">수량 (주)</label>
-              <input type="number" step="0.0001" min="0" placeholder="0"
+              <input type="number" step="any" min="0" placeholder="0"
                 value={form.quantity} onChange={e => set('quantity', e.target.value)}
+                onKeyDown={noInvalidKey}
                 className={inputCls} style={inputStyle} required />
             </div>
           </div>
@@ -437,7 +474,13 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
           {form.price && form.quantity && (
             <div className="rounded-xl px-4 py-3 text-right text-sm" style={{ background: '#f0eefb' }}>
               예상 총액 <strong style={{ color: '#8b7fd4' }}>
-                {fmt.amount(parseFloat(form.price) * parseFloat(form.quantity))}
+                {(() => {
+                  const total = parseFloat(form.price) * parseFloat(form.quantity)
+                  if (total === 0) return '$0'
+                  if (total < 0.01) return `$${total.toPrecision(4)}`
+                  if (total < 1)    return `$${total.toFixed(4)}`
+                  return fmt.amount(total)
+                })()}
               </strong>
             </div>
           )}
@@ -445,10 +488,35 @@ function AddJournalModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
           {/* 실현 손익 (SELL) */}
           {form.tradeType === 'SELL' && (
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">실현 손익 ($, 선택)</label>
+              <label className="block text-xs text-gray-400 mb-1.5">
+                실현 손익 ($)
+                {pnlAutoCalc && (
+                  <span className="ml-2 font-medium" style={{ color: '#8b7fd4' }}>자동 계산됨</span>
+                )}
+              </label>
               <input type="number" step="0.01" placeholder="+1234.00 또는 -500.00"
-                value={form.realizedPnl} onChange={e => set('realizedPnl', e.target.value)}
-                className={inputCls} style={inputStyle} />
+                value={form.realizedPnl} onChange={e => {
+                  set('realizedPnl', e.target.value)
+                  setPnlAutoCalc(null) // 직접 수정 시 자동 계산 표시 해제
+                }}
+                onKeyDown={noInvalidKeyAllowNeg}
+                className={inputCls}
+                style={pnlAutoCalc ? {
+                  ...inputStyle,
+                  border: `1.5px solid ${pnlAutoCalc.estimated >= 0 ? '#86efac' : '#fca5a5'}`,
+                } : inputStyle} />
+              {pnlAutoCalc && (
+                <p className="mt-1 text-xs" style={{ color: '#9e9ab8' }}>
+                  ⚠️ <strong style={{ color: '#b8a9e8' }}>앱 내 기록 기준 추정값</strong> · 평균 매수가 ${pnlAutoCalc.avgBuyPrice.toFixed(2)} ·{' '}
+                  <span style={{ color: pnlAutoCalc.estimated >= 0 ? '#22c55e' : '#f43f5e', fontWeight: 600 }}>
+                    {pnlAutoCalc.estimated >= 0 ? '+' : ''}{pnlAutoCalc.estimated.toFixed(2)}
+                  </span>
+                  <br />외부 거래소 매수가 있다면 직접 수정하세요
+                </p>
+              )}
+              {!pnlAutoCalc && portfolio.find(p => p.ticker === form.ticker) === undefined && (
+                <p className="mt-1 text-xs" style={{ color: '#c4c0d8' }}>⚠️ 앱 내 매수 기록 없음 · 실현 손익을 직접 입력하세요</p>
+              )}
             </div>
           )}
 
@@ -521,6 +589,260 @@ const SENTIMENT_META: Record<string, { emoji: string; label: string; color: stri
   NEUTRAL:  { emoji: '➡️', label: '중립',  color: '#8b7fd4', bg: '#f5f4fd' },
 }
 
+// ──────────────────────────────────────────────
+// 감성 타이밍 차트 (날짜 × 감성점수 + 매매 마커)
+// ──────────────────────────────────────────────
+function SentimentTimingChart({ entries }: { entries: JournalEntry[] }) {
+  const data = entries
+    .filter(e => e.sentimentScore != null)
+    .sort((a, b) => a.tradeDate.localeCompare(b.tradeDate))
+
+  if (data.length < 2) {
+    return (
+      <p className="text-sm text-center py-6" style={{ color: '#c4c0d8' }}>
+        감성 스냅샷이 기록된 매매가 2건 이상 필요합니다.
+      </p>
+    )
+  }
+
+  const W = 320, H = 170
+  const PADL = 32, PADR = 12, PADT = 14, PADB = 26
+  const innerW = W - PADL - PADR
+  const innerH = H - PADT - PADB
+
+  const timestamps = data.map(e => new Date(e.tradeDate).getTime())
+  const minTs = Math.min(...timestamps)
+  const maxTs = Math.max(...timestamps)
+  const tsRange = maxTs - minTs || 1
+
+  const xPos = (d: string) =>
+    PADL + ((new Date(d).getTime() - minTs) / tsRange) * innerW
+  const yPos = (score: number) =>
+    PADT + ((1 - score) / 2) * innerH
+  const y0 = yPos(0)
+
+  // X축: 최대 4개 날짜 레이블
+  const step = Math.max(1, Math.floor((data.length - 1) / 3))
+  const xLabels = Array.from({ length: 4 }, (_, i) => data[Math.min(i * step, data.length - 1)])
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
+      {/* 영역 배경: 감성 고점(긍정) */}
+      <rect x={PADL} y={PADT} width={innerW} height={y0 - PADT}
+        fill="#fff1f1" opacity={0.4} />
+      {/* 영역 배경: 감성 저점(부정) */}
+      <rect x={PADL} y={y0} width={innerW} height={PADT + innerH - y0}
+        fill="#eff6ff" opacity={0.4} />
+
+      {/* Y 그리드 라인 */}
+      {([-1, -0.5, 0, 0.5, 1] as number[]).map(v => (
+        <g key={v}>
+          <line
+            x1={PADL} y1={yPos(v)} x2={W - PADR} y2={yPos(v)}
+            stroke={v === 0 ? '#8b7fd4' : '#ece9f5'}
+            strokeWidth={v === 0 ? 1.5 : 0.8}
+            strokeDasharray={v === 0 ? '5,3' : undefined}
+          />
+          <text x={PADL - 4} y={yPos(v) + 3.5} textAnchor="end" fontSize={8} fill="#c4c0d8">
+            {v > 0 ? `+${v}` : v}
+          </text>
+        </g>
+      ))}
+
+      {/* Y축 라벨 */}
+      <text
+        x={9} y={PADT + innerH / 2}
+        textAnchor="middle" fontSize={7} fill="#9e9ab8"
+        transform={`rotate(-90, 9, ${PADT + innerH / 2})`}
+      >
+        감성 점수
+      </text>
+
+      {/* 영역 레이블 */}
+      <text x={PADL + 4} y={PADT + 11} fontSize={7.5} fill="#ef4444" opacity={0.7} fontWeight="600">
+        긍정 구간
+      </text>
+      <text x={PADL + 4} y={PADT + innerH - 4} fontSize={7.5} fill="#2563eb" opacity={0.7} fontWeight="600">
+        부정 구간
+      </text>
+
+      {/* 매매 마커 + 수직 드롭선 */}
+      {data.map((e, i) => {
+        const x = xPos(e.tradeDate)
+        const y = yPos(e.sentimentScore!)
+        const isBuy = e.tradeType === 'BUY'
+        const color = isBuy ? '#22c55e' : '#f43f5e'
+        return (
+          <g key={i}>
+            {/* 중립선까지 드롭선 */}
+            <line
+              x1={x} y1={Math.min(y, y0)} x2={x} y2={Math.max(y, y0)}
+              stroke={color} strokeWidth={1.2} strokeDasharray="2,2" opacity={0.5}
+            />
+            {/* BUY: ▲ / SELL: ▽ */}
+            {isBuy ? (
+              <polygon
+                points={`${x},${y - 7} ${x - 5.5},${y + 3.5} ${x + 5.5},${y + 3.5}`}
+                fill={color} opacity={0.9}
+              />
+            ) : (
+              <polygon
+                points={`${x},${y + 7} ${x - 5.5},${y - 3.5} ${x + 5.5},${y - 3.5}`}
+                fill={color} opacity={0.9}
+              />
+            )}
+          </g>
+        )
+      })}
+
+      {/* X축 날짜 레이블 */}
+      {xLabels.map((e, i) => (
+        <text key={i} x={xPos(e.tradeDate)} y={H - 4}
+          textAnchor="middle" fontSize={7.5} fill="#c4c0d8">
+          {new Date(e.tradeDate).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
+        </text>
+      ))}
+
+      {/* 범례 */}
+      <g transform={`translate(${W - PADR - 70}, ${PADT})`}>
+        <polygon points="6,0 0,10 12,10" fill="#22c55e" opacity={0.9} />
+        <text x={16} y={9} fontSize={7.5} fill="#5e5a78">매수 BUY</text>
+        <polygon points={`6,${18} 0,${14} 12,${14}`} fill="#f43f5e" opacity={0.9}
+          transform={`translate(0, 8)`} />
+        <text x={16} y={25} fontSize={7.5} fill="#5e5a78">매도 SELL</text>
+      </g>
+    </svg>
+  )
+}
+
+// ──────────────────────────────────────────────
+// 감성 × 수익 산점도 (4분면)
+// ──────────────────────────────────────────────
+function SentimentPnlScatter({ entries }: { entries: JournalEntry[] }) {
+  const data = entries.filter(e => e.sentimentScore != null && e.realizedPnl != null)
+
+  if (data.length < 3) {
+    return (
+      <p className="text-sm text-center py-6" style={{ color: '#c4c0d8' }}>
+        감성 스냅샷 + 실현 손익이 모두 기록된 매매가 3건 이상 필요합니다.
+      </p>
+    )
+  }
+
+  const W = 320, H = 185
+  const PADL = 48, PADR = 12, PADT = 14, PADB = 28
+  const innerW = W - PADL - PADR
+  const innerH = H - PADT - PADB
+
+  const xPos = (score: number) => PADL + ((score + 1) / 2) * innerW
+  const x0 = xPos(0)
+
+  const maxAbs = Math.max(...data.map(e => Math.abs(e.realizedPnl!)), 1)
+  const yPos = (pnl: number) => PADT + ((maxAbs - pnl) / (2 * maxAbs)) * innerH
+  const y0 = yPos(0)
+
+  const fmtK = (v: number) =>
+    Math.abs(v) >= 1000 ? `${v >= 0 ? '+' : ''}$${(v / 1000).toFixed(1)}k`
+    : `${v >= 0 ? '+' : ''}$${Math.round(v)}`
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
+      {/* 4분면 배경 */}
+      {/* 우상단: 긍정감성 + 수익 → 순방향 */}
+      <rect x={x0} y={PADT} width={W - PADR - x0} height={y0 - PADT}
+        fill="#f0fdf4" opacity={0.7} />
+      {/* 좌상단: 부정감성 + 수익 → 역발상 수익 ✨ */}
+      <rect x={PADL} y={PADT} width={x0 - PADL} height={y0 - PADT}
+        fill="#fef9c3" opacity={0.6} />
+      {/* 좌하단: 부정감성 + 손실 */}
+      <rect x={PADL} y={y0} width={x0 - PADL} height={PADT + innerH - y0}
+        fill="#f5f4fa" opacity={0.5} />
+      {/* 우하단: 긍정감성 + 손실 → 고점 매수 손실 */}
+      <rect x={x0} y={y0} width={W - PADR - x0} height={PADT + innerH - y0}
+        fill="#fff1f3" opacity={0.6} />
+
+      {/* 4분면 레이블 */}
+      <text x={PADL + 4} y={PADT + 11} fontSize={7.5} fill="#92400e" fontWeight="600" opacity={0.8}>
+        역발상 수익 ✨
+      </text>
+      <text x={x0 + 4} y={PADT + 11} fontSize={7.5} fill="#166534" fontWeight="600" opacity={0.8}>
+        순방향 수익
+      </text>
+      <text x={PADL + 4} y={PADT + innerH - 4} fontSize={7.5} fill="#9e9ab8" opacity={0.7}>
+        부정 구간 손실
+      </text>
+      <text x={x0 + 4} y={PADT + innerH - 4} fontSize={7.5} fill="#be123c" opacity={0.8}>
+        고점 매수 손실 ⚠️
+      </text>
+
+      {/* X 그리드 + 레이블 */}
+      {([-1, -0.5, 0, 0.5, 1] as number[]).map(v => (
+        <g key={v}>
+          <line
+            x1={xPos(v)} y1={PADT} x2={xPos(v)} y2={PADT + innerH}
+            stroke={v === 0 ? '#8b7fd4' : '#ece9f5'}
+            strokeWidth={v === 0 ? 1.5 : 0.8}
+            strokeDasharray={v === 0 ? '5,3' : undefined}
+          />
+          <text x={xPos(v)} y={H - 5} textAnchor="middle" fontSize={8} fill="#c4c0d8">
+            {v > 0 ? `+${v}` : v}
+          </text>
+        </g>
+      ))}
+      <text x={W / 2} y={H} textAnchor="middle" fontSize={7.5} fill="#9e9ab8">
+        감성 점수 (매매 시점)
+      </text>
+
+      {/* Y 중립선 */}
+      <line x1={PADL} y1={y0} x2={W - PADR} y2={y0}
+        stroke="#8b7fd4" strokeWidth={1.5} strokeDasharray="5,3" />
+
+      {/* Y축 레이블 */}
+      <text x={PADL - 4} y={PADT + 3} textAnchor="end" fontSize={7.5} fill="#c4c0d8">
+        {fmtK(maxAbs)}
+      </text>
+      <text x={PADL - 4} y={y0 + 4} textAnchor="end" fontSize={7.5} fill="#c4c0d8">$0</text>
+      <text x={PADL - 4} y={PADT + innerH} textAnchor="end" fontSize={7.5} fill="#c4c0d8">
+        {fmtK(-maxAbs)}
+      </text>
+      <text
+        x={11} y={PADT + innerH / 2}
+        textAnchor="middle" fontSize={7} fill="#9e9ab8"
+        transform={`rotate(-90, 11, ${PADT + innerH / 2})`}
+      >
+        실현 손익
+      </text>
+
+      {/* 데이터 포인트 */}
+      {data.map((e, i) => {
+        const x = xPos(e.sentimentScore!)
+        const y = yPos(e.realizedPnl!)
+        const isBuy = e.tradeType === 'BUY'
+        return (
+          <g key={i}>
+            <circle
+              cx={x} cy={y} r={6}
+              fill={isBuy ? '#22c55e' : '#f43f5e'}
+              opacity={0.82}
+              stroke="#fff" strokeWidth={1.5}
+            />
+          </g>
+        )
+      })}
+
+      {/* 범례 */}
+      <g transform={`translate(${PADL}, ${PADT - 2})`}>
+        <circle cx={5} cy={4} r={4} fill="#22c55e" opacity={0.85} />
+        <text x={12} y={8} fontSize={7.5} fill="#5e5a78">매수</text>
+        <circle cx={45} cy={4} r={4} fill="#f43f5e" opacity={0.85} />
+        <text x={52} y={8} fontSize={7.5} fill="#5e5a78">매도</text>
+      </g>
+    </svg>
+  )
+}
+
+// ──────────────────────────────────────────────
 function RingChart({ rate, size = 80, strokeWidth = 9 }: { rate: number; size?: number; strokeWidth?: number }) {
   const r = (size - strokeWidth) / 2
   const circ = 2 * Math.PI * r
@@ -813,6 +1135,104 @@ function InsightsTab({ entries, portfolio }: { entries: JournalEntry[]; portfoli
           })()}
         </div>
       </div>
+
+      {/* ── 섹션 4: 감성 타이밍 차트 ── */}
+      {entries.some(e => e.sentimentScore != null) && (
+        <div style={CARD}>
+          <h3 className="text-sm font-bold mb-1" style={{ color: '#18162a' }}>
+            📍 매매 타이밍 vs 감성 점수
+          </h3>
+          <p className="text-xs mb-4" style={{ color: '#9e9ab8' }}>
+            매수(▲)·매도(▽) 시점의 감성 점수를 시계열로 표시합니다.
+            <br />긍정 고점에서 매수하면 추격 매수, 부정 저점에서 매수하면 역발상 매수예요.
+          </p>
+          <SentimentTimingChart entries={entries} />
+          {/* 요약 통계 */}
+          {(() => {
+            const buyWithSentiment = entries.filter(e => e.tradeType === 'BUY' && e.sentimentScore != null)
+            const sellWithSentiment = entries.filter(e => e.tradeType === 'SELL' && e.sentimentScore != null)
+            const avgBuyScore = buyWithSentiment.length > 0
+              ? buyWithSentiment.reduce((s, e) => s + e.sentimentScore!, 0) / buyWithSentiment.length
+              : null
+            const avgSellScore = sellWithSentiment.length > 0
+              ? sellWithSentiment.reduce((s, e) => s + e.sentimentScore!, 0) / sellWithSentiment.length
+              : null
+            if (avgBuyScore === null && avgSellScore === null) return null
+            return (
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                {avgBuyScore !== null && (
+                  <div className="rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                    <p className="text-xs mb-1" style={{ color: '#16a34a' }}>매수 평균 감성</p>
+                    <p className="text-lg font-bold" style={{ color: '#22c55e' }}>
+                      {avgBuyScore > 0 ? '+' : ''}{avgBuyScore.toFixed(2)}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: '#9e9ab8' }}>
+                      {avgBuyScore > 0.3 ? '⚠️ 긍정 고점 추격 경향' : avgBuyScore < -0.2 ? '✨ 역발상 매수 경향' : '− 중립 구간 매수'}
+                    </p>
+                  </div>
+                )}
+                {avgSellScore !== null && (
+                  <div className="rounded-xl p-3 text-center" style={{ background: '#fff1f3', border: '1px solid #fecdd3' }}>
+                    <p className="text-xs mb-1" style={{ color: '#f43f5e' }}>매도 평균 감성</p>
+                    <p className="text-lg font-bold" style={{ color: '#f43f5e' }}>
+                      {avgSellScore > 0 ? '+' : ''}{avgSellScore.toFixed(2)}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: '#9e9ab8' }}>
+                      {avgSellScore < -0.3 ? '✨ 공포 구간 손절 경향' : avgSellScore > 0.2 ? '− 고점 익절 경향' : '− 중립 구간 매도'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* ── 섹션 5: 감성 × 수익 산점도 ── */}
+      {entries.some(e => e.sentimentScore != null && e.realizedPnl != null) && (
+        <div style={CARD}>
+          <h3 className="text-sm font-bold mb-1" style={{ color: '#18162a' }}>
+            🔬 감성 점수 × 실현 손익 상관관계
+          </h3>
+          <p className="text-xs mb-4" style={{ color: '#9e9ab8' }}>
+            매매 시점의 감성 점수와 실현 손익의 관계를 4분면으로 분석합니다.
+            <br />좌상단(역발상 수익)이 많을수록 역행 매매 전략이 유효한 투자자입니다.
+          </p>
+          <SentimentPnlScatter entries={entries} />
+          {/* 분면별 집계 */}
+          {(() => {
+            const withBoth = entries.filter(e => e.sentimentScore != null && e.realizedPnl != null)
+            const q = {
+              contrarian: withBoth.filter(e => e.sentimentScore! < 0 && e.realizedPnl! > 0).length,
+              follow:     withBoth.filter(e => e.sentimentScore! > 0 && e.realizedPnl! > 0).length,
+              fearLoss:   withBoth.filter(e => e.sentimentScore! < 0 && e.realizedPnl! < 0).length,
+              chaseLoss:  withBoth.filter(e => e.sentimentScore! > 0 && e.realizedPnl! < 0).length,
+            }
+            const total = withBoth.length
+            if (total === 0) return null
+            return (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {[
+                  { label: '역발상 수익 ✨', count: q.contrarian, color: '#92400e', bg: '#fef9c3' },
+                  { label: '순방향 수익',   count: q.follow,     color: '#166534', bg: '#f0fdf4' },
+                  { label: '부정 구간 손실', count: q.fearLoss,   color: '#9e9ab8', bg: '#f5f4fa' },
+                  { label: '고점 매수 손실 ⚠️', count: q.chaseLoss, color: '#be123c', bg: '#fff1f3' },
+                ].map(({ label, count, color, bg }) => (
+                  <div key={label} className="rounded-xl p-3 flex items-center justify-between" style={{ background: bg }}>
+                    <p className="text-xs font-semibold" style={{ color }}>{label}</p>
+                    <p className="text-base font-bold" style={{ color }}>
+                      {count}건
+                      <span className="text-xs font-normal ml-1" style={{ color: '#9e9ab8' }}>
+                        ({total > 0 ? Math.round(count / total * 100) : 0}%)
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
+      )}
     </div>
   )
 }
@@ -1015,6 +1435,7 @@ export default function JournalPage() {
         <AddJournalModal
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); loadData() }}
+          portfolio={portfolio}
         />
       )}
     </div>
