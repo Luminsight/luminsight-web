@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { newsApi, watchlistApi } from '@/lib/api'
-import type { News, NewsSummary, SentimentLabel } from '@/types'
+import { newsApi, watchlistApi, tradingApi } from '@/lib/api'
+import type { News, NewsSummary, SentimentLabel, SignalHistory, InvestOpinion } from '@/types'
 import SentimentChart from '@/components/SentimentChart'
 import SentimentDonutChart from '@/components/SentimentDonutChart'
 import SentimentTrendChart from '@/components/SentimentTrendChart'
@@ -17,7 +17,7 @@ import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
-type DetailTab = 'overview' | 'technical' | 'fundamental' | 'news'
+type DetailTab = 'overview' | 'technical' | 'fundamental' | 'news' | 'signals'
 type DateRange = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH'
 
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
@@ -90,6 +90,11 @@ export default function StockDetailPage() {
 
   const [showMemoModal, setShowMemoModal] = useState(false)
 
+  // 신호 히스토리
+  const [signalHistory, setSignalHistory]             = useState<SignalHistory[]>([])
+  const [signalHistoryLoading, setSignalHistoryLoading] = useState(false)
+  const [signalHistoryDays, setSignalHistoryDays]     = useState(90)
+
   // 최근 뉴스에서 현재 감성 점수 계산 (최근 10건 평균)
   const currentSentiment = useMemo(() => {
     const recent = news.slice(0, 10).filter(n => n.sentimentScore != null)
@@ -131,6 +136,18 @@ export default function StockDetailPage() {
       setInWatchlist(tickers.includes(ticker))
     } catch { /* silent */ }
   }, [isAuthenticated, ticker])
+
+  const fetchSignalHistory = useCallback(async (sym: string, days: number) => {
+    setSignalHistoryLoading(true)
+    try {
+      const res = await tradingApi.getSignalHistory(sym, days)
+      setSignalHistory(res.history ?? [])
+    } catch {
+      setSignalHistory([])
+    } finally {
+      setSignalHistoryLoading(false)
+    }
+  }, [])
 
   useEffect(() => { fetchNews(ticker) }, [ticker, fetchNews])
   useEffect(() => { checkWatchlist() }, [checkWatchlist])
@@ -176,8 +193,16 @@ export default function StockDetailPage() {
     { key: 'overview',    label: '📊 개요' },
     { key: 'technical',   label: '📈 기술적' },
     { key: 'fundamental', label: '🏢 펀더멘털' },
+    { key: 'signals',     label: '🔔 신호 히스토리' },
     { key: 'news',        label: '📰 뉴스' },
   ]
+
+  // 신호 히스토리 탭 진입 시 데이터 로드
+  useEffect(() => {
+    if (activeTab === 'signals' && signalHistory.length === 0 && !signalHistoryLoading) {
+      fetchSignalHistory(ticker, signalHistoryDays)
+    }
+  }, [activeTab, ticker, signalHistory.length, signalHistoryLoading, signalHistoryDays, fetchSignalHistory])
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f4fa', width: '100%' }}>
@@ -441,6 +466,21 @@ export default function StockDetailPage() {
           </div>
         )}
 
+        {/* ── 신호 히스토리 탭 ────────────────────────────── */}
+        {activeTab === 'signals' && (
+          <SignalHistoryTab
+            ticker={ticker}
+            history={signalHistory}
+            loading={signalHistoryLoading}
+            days={signalHistoryDays}
+            onChangeDays={(d) => {
+              setSignalHistoryDays(d)
+              setSignalHistory([])
+              fetchSignalHistory(ticker, d)
+            }}
+          />
+        )}
+
         {/* ── 뉴스 탭 ─────────────────────────────────────── */}
         {(activeTab === 'news' || (activeTab === 'overview' && !loading && news.length > 0)) && (
           <div className="space-y-3">
@@ -557,6 +597,235 @@ export default function StockDetailPage() {
               무료 가입
             </Link>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── 신호 히스토리 탭 컴포넌트 ─────────────────────────────────
+
+const SIGNAL_COLOR: Record<InvestOpinion, string> = {
+  BUY:  '#22c55e',
+  SELL: '#f43f5e',
+  HOLD: '#8b8fa8',
+}
+
+const SIGNAL_BG: Record<InvestOpinion, string> = {
+  BUY:  '#f0fdf4',
+  SELL: '#fff1f3',
+  HOLD: '#f3f4f6',
+}
+
+const SIGNAL_LABEL: Record<InvestOpinion, string> = {
+  BUY:  '매수',
+  SELL: '매도',
+  HOLD: '보유',
+}
+
+const SIGNAL_EMOJI: Record<InvestOpinion, string> = {
+  BUY:  '🟢',
+  SELL: '🔴',
+  HOLD: '⚪️',
+}
+
+function SignalHistoryTab({
+  ticker,
+  history,
+  loading,
+  days,
+  onChangeDays,
+}: {
+  ticker: string
+  history: SignalHistory[]
+  loading: boolean
+  days: number
+  onChangeDays: (d: number) => void
+}) {
+  const DAYS_OPTIONS = [30, 90, 180, 365]
+
+  // 신호 분포 계산
+  const dist = history.reduce(
+    (acc, h) => { acc[h.signal] = (acc[h.signal] ?? 0) + 1; return acc },
+    {} as Record<string, number>
+  )
+
+  return (
+    <div className="space-y-4">
+      {/* 기간 선택 + 요약 */}
+      <div style={{ ...CARD, padding: '16px 20px' }}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold" style={{ color: '#5e5a78' }}>기간</span>
+            {DAYS_OPTIONS.map(d => (
+              <button
+                key={d}
+                onClick={() => onChangeDays(d)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: days === d ? '#8b7fd4' : '#f3f1fa',
+                  color:      days === d ? '#fff'    : '#9e9ab8',
+                }}
+              >
+                {d >= 365 ? '1년' : `${d}일`}
+              </button>
+            ))}
+          </div>
+          {!loading && history.length > 0 && (
+            <div className="flex items-center gap-3 text-xs">
+              {(['BUY', 'HOLD', 'SELL'] as InvestOpinion[]).map(s => (
+                <span key={s} className="flex items-center gap-1">
+                  <span>{SIGNAL_EMOJI[s]}</span>
+                  <span style={{ color: SIGNAL_COLOR[s], fontWeight: 600 }}>{SIGNAL_LABEL[s]}</span>
+                  <span style={{ color: '#9e9ab8' }}>{dist[s] ?? 0}회</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 히스토리 목록 */}
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ ...CARD, padding: '16px 20px' }}>
+              <div className="animate-pulse flex gap-4">
+                <div className="w-14 h-14 rounded-xl" style={{ background: '#f3f1fa' }} />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-3 rounded" style={{ background: '#f3f1fa', width: '40%' }} />
+                  <div className="h-3 rounded" style={{ background: '#f3f1fa', width: '70%' }} />
+                  <div className="h-3 rounded" style={{ background: '#f3f1fa', width: '55%' }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : history.length === 0 ? (
+        <div style={{ ...CARD, textAlign: 'center', paddingTop: 48, paddingBottom: 48 }}>
+          <p style={{ fontSize: 36, marginBottom: 12 }}>📭</p>
+          <p className="font-medium" style={{ color: '#5e5a78' }}>신호 기록이 없습니다</p>
+          <p className="text-sm mt-1" style={{ color: '#9e9ab8' }}>
+            매일 22:30 UTC 장 마감 후 자동 생성됩니다
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {history.map((h) => (
+            <SignalHistoryCard key={h.id} item={h} ticker={ticker} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SignalHistoryCard({ item, ticker }: { item: SignalHistory; ticker: string }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const signal = item.signal as InvestOpinion
+
+  return (
+    <div
+      style={{
+        background: '#ffffff',
+        borderRadius: '16px',
+        border: `1.5px solid ${expanded ? SIGNAL_COLOR[signal] + '40' : '#ece9f5'}`,
+        overflow: 'hidden',
+        transition: 'border-color 0.15s',
+        boxShadow: '0 2px 8px rgba(139,127,212,0.07)',
+      }}
+    >
+      {/* 헤더 행 */}
+      <button
+        className="w-full flex items-center gap-4 p-4 text-left"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {/* 신호 뱃지 */}
+        <div
+          className="shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center gap-0.5"
+          style={{ background: SIGNAL_BG[signal] }}
+        >
+          <span style={{ fontSize: 18 }}>{SIGNAL_EMOJI[signal]}</span>
+          <span className="text-xs font-bold" style={{ color: SIGNAL_COLOR[signal] }}>
+            {SIGNAL_LABEL[signal]}
+          </span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="text-sm font-bold" style={{ color: '#18162a' }}>
+              {new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </span>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: '#f0eefb', color: '#8b7fd4', border: '1px solid #d4cff2' }}
+            >
+              {item.strategyName?.includes('v2') ? 'v2' : '폴백'}
+            </span>
+            <span className="text-xs ml-auto" style={{ color: '#9e9ab8' }}>
+              신뢰도 {Math.round(item.confidence * 100)}%
+            </span>
+          </div>
+
+          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: '#6b6886' }}>
+            {item.reason}
+          </p>
+
+          {/* 수치 한 줄 요약 */}
+          <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: '#9e9ab8' }}>
+            <span>종가 <strong style={{ color: '#5e5a78' }}>${item.currentPrice.toLocaleString()}</strong></span>
+            <span>감성
+              <strong style={{ color: item.sentimentScore > 0.1 ? '#22c55e' : item.sentimentScore < -0.1 ? '#f43f5e' : '#8b8fa8' }}>
+                {' '}{item.sentimentScore >= 0 ? '+' : ''}{item.sentimentScore.toFixed(2)}
+              </strong>
+            </span>
+            {item.rsiValue && <span>RSI <strong style={{ color: '#5e5a78' }}>{item.rsiValue.toFixed(1)}</strong></span>}
+            <span>복합점수 <strong style={{ color: '#8b7fd4' }}>{item.combinedScore.toFixed(3)}</strong></span>
+          </div>
+        </div>
+
+        {/* 펼치기 화살표 */}
+        <svg
+          width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="#c4c0d8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          className="shrink-0 transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+
+      {/* 확장 상세 (breakdown) */}
+      {expanded && item.breakdown && (
+        <div style={{ borderTop: '1px solid #f0eefb', padding: '12px 16px 16px', background: '#faf9fe' }}>
+          <p className="text-xs font-semibold mb-3" style={{ color: '#9e9ab8' }}>4축 분석 기여도</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: '기술적', score: item.breakdown.technicalScore, contrib: item.breakdown.technicalContrib, detail: item.breakdown.technicalDetail },
+              { label: '감성', score: item.breakdown.sentimentScore, contrib: item.breakdown.sentimentContrib, detail: '' },
+              { label: '펀더멘털', score: item.breakdown.fundamentalScore, contrib: item.breakdown.fundamentalContrib, detail: item.breakdown.fundamentalDetail },
+              { label: '시장', score: item.breakdown.marketScore, contrib: item.breakdown.marketContrib, detail: '' },
+            ].map(axis => (
+              <div key={axis.label} style={{ background: '#ffffff', borderRadius: 10, padding: '10px 12px', border: '1px solid #ece9f5' }}>
+                <p className="text-xs font-medium mb-1" style={{ color: '#9e9ab8' }}>{axis.label}</p>
+                <p className="text-sm font-bold" style={{ color: axis.score > 0 ? '#22c55e' : axis.score < 0 ? '#f43f5e' : '#5e5a78' }}>
+                  {axis.score >= 0 ? '+' : ''}{axis.score.toFixed(3)}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#8b7fd4' }}>
+                  기여 {axis.contrib >= 0 ? '+' : ''}{axis.contrib.toFixed(3)}
+                </p>
+                {axis.detail && (
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: '#9e9ab8' }}>{axis.detail}</p>
+                )}
+              </div>
+            ))}
+          </div>
+          {item.breakdown.earningsRisk && (
+            <div className="mt-3 flex items-center gap-1.5 text-xs"
+              style={{ color: '#d97706', background: '#fffbeb', borderRadius: 8, padding: '6px 10px', border: '1px solid #fde68a' }}>
+              ⚠️ 어닝 발표 임박 — 변동성 주의
+            </div>
+          )}
         </div>
       )}
     </div>

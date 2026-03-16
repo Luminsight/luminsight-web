@@ -304,6 +304,17 @@ export const tradingApi = {
     if (!res.data.success) throw new Error('No signal available')
     return res.data.signal as import('@/types').TradingSignal
   },
+
+  // 신호 히스토리 조회 (기본 90일)
+  getSignalHistory: async (
+    ticker: string,
+    days: number = 90
+  ): Promise<import('@/types').SignalHistoryResponse> => {
+    const res = await api.get(`/trading/signals/${ticker.toUpperCase()}/history`, {
+      params: { days }
+    })
+    return res.data as import('@/types').SignalHistoryResponse
+  },
 }
 
 export const stockApi = {

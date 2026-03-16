@@ -344,3 +344,29 @@ export interface PeerComparison {
   peers: FundamentalData[]
   sectorAverage: SectorAverage
 }
+
+// ===== 신호 히스토리 타입 =====
+
+export interface SignalHistory {
+  id: number
+  date: string
+  signal: InvestOpinion
+  reason: string
+  confidence: number
+  currentPrice: number
+  sentimentScore: number
+  rsiValue: number | null
+  combinedScore: number
+  strategyName: string
+  createdAt: string
+  breakdown: SignalBreakdown | null
+}
+
+export interface SignalHistoryResponse {
+  success: boolean
+  ticker: string
+  startDate: string
+  endDate: string
+  total: number
+  history: SignalHistory[]
+}
