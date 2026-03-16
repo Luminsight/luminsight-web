@@ -17,6 +17,22 @@ const PAGE_SIZE = 20
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 type SortOrder = 'latest' | 'score_high' | 'score_low'
+type DateRange = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH'
+
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'ALL',   label: '전체' },
+  { value: 'TODAY', label: '오늘' },
+  { value: 'WEEK',  label: '이번 주' },
+  { value: 'MONTH', label: '이번 달' },
+]
+
+function dateRangeStart(range: DateRange): number {
+  const now = Date.now()
+  if (range === 'TODAY') return new Date().setHours(0, 0, 0, 0)
+  if (range === 'WEEK')  return now - 7  * 24 * 60 * 60 * 1000
+  if (range === 'MONTH') return now - 30 * 24 * 60 * 60 * 1000
+  return 0
+}
 
 // ── 유틸 ─────────────────────────────────────────────────────
 function sentimentColor(label: string) {
@@ -197,7 +213,12 @@ export default function NewsPage() {
   const [sentiment, setSentiment] = useState<SentimentFilter>('ALL')
   const [tickerQuery, setTickerQuery] = useState('')
   const [sortOrder, setSortOrder] = useState<SortOrder>('latest')
+  const [dateRange, setDateRange] = useState<DateRange>('ALL')
+  const [sourceFilter, setSourceFilter] = useState<string>('ALL')
   const [page, setPage]           = useState(1)
+
+  // 소스 목록 동적 파생
+  const sources = Array.from(new Set(allNews.map(n => n.source))).sort()
 
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -221,17 +242,28 @@ export default function NewsPage() {
   useEffect(() => { loadNews() }, [loadNews])
 
   // 필터/정렬 변경 시 페이지 초기화
-  useEffect(() => { setPage(1) }, [sentiment, tickerQuery, sortOrder])
+  useEffect(() => { setPage(1) }, [sentiment, tickerQuery, sortOrder, dateRange, sourceFilter])
 
   // ── 필터링 + 정렬 ─────────────────────────────────────────
+  const rangeStart = dateRangeStart(dateRange)
   const filtered = allNews
     .filter(n => sentiment === 'ALL' || n.sentimentLabel === sentiment)
     .filter(n => !tickerQuery.trim() || n.ticker.includes(tickerQuery.trim().toUpperCase()))
+    .filter(n => dateRange === 'ALL' || new Date(n.publishedAt).getTime() >= rangeStart)
+    .filter(n => sourceFilter === 'ALL' || n.source === sourceFilter)
     .sort((a, b) => {
       if (sortOrder === 'latest')     return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
       if (sortOrder === 'score_high') return b.sentimentScore - a.sentimentScore
       return a.sentimentScore - b.sentimentScore
     })
+
+  // 활성 필터 개수 (배지용)
+  const activeFilterCount = [
+    sentiment !== 'ALL',
+    tickerQuery.trim().length > 0,
+    dateRange !== 'ALL',
+    sourceFilter !== 'ALL',
+  ].filter(Boolean).length
 
   const totalPages   = Math.ceil(filtered.length / PAGE_SIZE)
   const visibleNews  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -335,37 +367,99 @@ export default function NewsPage() {
         )}
 
         {/* 필터 + 정렬 바 */}
-        <div style={CARD} className="flex flex-wrap items-center gap-3">
-          {/* 감성 필터 */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold" style={{ color: '#9e9ab8' }}>감성</span>
-            <FilterChip active={sentiment === 'ALL'}      onClick={() => setSentiment('ALL')}>전체</FilterChip>
-            <FilterChip active={sentiment === 'POSITIVE'} onClick={() => setSentiment('POSITIVE')} color="#ef4444">↑ 긍정</FilterChip>
-            <FilterChip active={sentiment === 'NEGATIVE'} onClick={() => setSentiment('NEGATIVE')} color="#2563eb">↓ 부정</FilterChip>
-            <FilterChip active={sentiment === 'NEUTRAL'}  onClick={() => setSentiment('NEUTRAL')}  color="#8b8fa8">− 중립</FilterChip>
+        <div style={CARD} className="space-y-3">
+          {/* 1행: 감성 필터 + 정렬 */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold" style={{ color: '#9e9ab8' }}>감성</span>
+              <FilterChip active={sentiment === 'ALL'}      onClick={() => setSentiment('ALL')}>전체</FilterChip>
+              <FilterChip active={sentiment === 'POSITIVE'} onClick={() => setSentiment('POSITIVE')} color="#ef4444">↑ 긍정</FilterChip>
+              <FilterChip active={sentiment === 'NEGATIVE'} onClick={() => setSentiment('NEGATIVE')} color="#2563eb">↓ 부정</FilterChip>
+              <FilterChip active={sentiment === 'NEUTRAL'}  onClick={() => setSentiment('NEUTRAL')}  color="#8b8fa8">− 중립</FilterChip>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="text-xs font-semibold" style={{ color: '#9e9ab8' }}>정렬</span>
+              <select
+                value={sortOrder}
+                onChange={e => setSortOrder(e.target.value as SortOrder)}
+                className="text-sm rounded-xl px-3 py-1.5 outline-none"
+                style={{ background: '#f8f7fd', border: '1.5px solid #ece9f5', color: '#5e5a78' }}
+              >
+                <option value="latest">최신순</option>
+                <option value="score_high">긍정 강도순</option>
+                <option value="score_low">부정 강도순</option>
+              </select>
+            </div>
           </div>
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="text-xs font-semibold" style={{ color: '#9e9ab8' }}>정렬</span>
-            <select
-              value={sortOrder}
-              onChange={e => setSortOrder(e.target.value as SortOrder)}
-              className="text-sm rounded-xl px-3 py-1.5 outline-none"
-              style={{ background: '#f8f7fd', border: '1.5px solid #ece9f5', color: '#5e5a78' }}
-            >
-              <option value="latest">최신순</option>
-              <option value="score_high">긍정 강도순</option>
-              <option value="score_low">부정 강도순</option>
-            </select>
+          {/* 구분선 */}
+          <div style={{ borderTop: '1px solid #f0ecfb' }} />
+
+          {/* 2행: 날짜 필터 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold" style={{ color: '#9e9ab8' }}>기간</span>
+            {DATE_RANGE_OPTIONS.map(opt => (
+              <FilterChip
+                key={opt.value}
+                active={dateRange === opt.value}
+                onClick={() => setDateRange(opt.value)}
+                color="#6366f1"
+              >
+                {opt.label}
+              </FilterChip>
+            ))}
           </div>
+
+          {/* 3행: 소스 필터 (로딩 후, 소스 2개 이상일 때만 표시) */}
+          {!loading && sources.length >= 2 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold" style={{ color: '#9e9ab8' }}>소스</span>
+              <FilterChip active={sourceFilter === 'ALL'} onClick={() => setSourceFilter('ALL')} color="#0ea5e9">
+                전체
+              </FilterChip>
+              {sources.map(src => (
+                <FilterChip
+                  key={src}
+                  active={sourceFilter === src}
+                  onClick={() => setSourceFilter(src)}
+                  color="#0ea5e9"
+                >
+                  {src}
+                </FilterChip>
+              ))}
+            </div>
+          )}
+
+          {/* 활성 필터 초기화 */}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center justify-end">
+              <button
+                onClick={() => {
+                  setSentiment('ALL')
+                  setTickerQuery('')
+                  setDateRange('ALL')
+                  setSourceFilter('ALL')
+                }}
+                className="text-xs font-medium px-3 py-1 rounded-lg transition-all"
+                style={{ background: '#fff1f1', color: '#ef4444', border: '1px solid #fecaca' }}
+              >
+                × 필터 초기화 ({activeFilterCount})
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 결과 카운트 */}
         {!loading && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm" style={{ color: '#9e9ab8' }}>
               {tickerQuery && <span className="font-semibold" style={{ color: '#8b7fd4' }}>{tickerQuery.toUpperCase()} · </span>}
+              {dateRange !== 'ALL' && <span className="font-semibold" style={{ color: '#6366f1' }}>{DATE_RANGE_OPTIONS.find(o => o.value === dateRange)?.label} · </span>}
+              {sourceFilter !== 'ALL' && <span className="font-semibold" style={{ color: '#0ea5e9' }}>{sourceFilter} · </span>}
               총 <span className="font-semibold" style={{ color: '#18162a' }}>{filtered.length}</span>건
+              {filtered.length < allNews.length && (
+                <span style={{ color: '#c4c0d8' }}> / {allNews.length}건</span>
+              )}
             </p>
             {totalPages > 1 && (
               <p className="text-xs" style={{ color: '#c4c0d8' }}>{page} / {totalPages} 페이지</p>
