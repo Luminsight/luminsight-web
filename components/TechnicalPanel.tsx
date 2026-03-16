@@ -7,8 +7,9 @@ import {
 } from 'recharts'
 import { technicalApi, tradingApi, DEFAULT_WEIGHTS } from '@/lib/api'
 import type { SignalWeights } from '@/lib/api'
-import type { TechnicalIndicatorData, SignalScoreResult, ComponentScore, RsiSignal, MacdCross, TradingSignal } from '@/types'
+import type { TechnicalIndicatorData, SignalScoreResult, ComponentScore, RsiSignal, MacdCross, TradingSignal, SignalBreakdown } from '@/types'
 import SignalDetailModal from '@/components/SignalDetailModal'
+import { scoreToLabel, scoreToColor } from '@/components/SentimentGauge'
 
 interface Props { ticker: string }
 type Period = 7 | 30 | 60 | 90
@@ -145,6 +146,77 @@ function ScoreGuide({ score }: { score: number }) {
           </span>
         )
       })}
+    </div>
+  )
+}
+
+// ── MiniBreakdown (인라인 4축 기여도) ────────────────────────
+
+const AXIS_META = [
+  { key: 'technical',    label: '기술적',    weight: '40%' },
+  { key: 'sentiment',    label: '뉴스 감성', weight: '30%' },
+  { key: 'fundamental',  label: '펀더멘털',  weight: '20%' },
+  { key: 'market',       label: '시장',      weight: '10%' },
+] as const
+
+function MiniBreakdown({ bd, mainColor }: { bd: SignalBreakdown; mainColor: string }) {
+  const rows = AXIS_META.map(({ key, label, weight }) => {
+    const score  = bd[`${key}Score`  as keyof SignalBreakdown] as number
+    const contrib = bd[`${key}Contrib` as keyof SignalBreakdown] as number
+    const color  = scoreToColor(score)
+    const lbl    = scoreToLabel(score)
+    // contrib: 양수면 주신호 방향 기여, 음수면 반대 기여
+    const pct    = Math.min(Math.abs(contrib) * 100, 100)
+    const positive = contrib >= 0
+    return { label, weight, score, contrib, color, lbl, pct, positive }
+  })
+
+  return (
+    <div style={{
+      flex: 2, minWidth: 180,
+      background: '#ffffff40',
+      borderRadius: 10,
+      padding: '8px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 5,
+    }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: mainColor, marginBottom: 2, opacity: 0.8 }}>
+        왜 이 신호인가?
+      </p>
+      {rows.map(row => (
+        <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* 축 레이블 + 가중치 */}
+          <div style={{ minWidth: 54, flex: '0 0 54px' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#4a4568' }}>{row.label}</span>
+            <span style={{ fontSize: 9, color: '#9e9ab8', marginLeft: 3 }}>{row.weight}</span>
+          </div>
+          {/* 점수 레이블 */}
+          <span style={{
+            fontSize: 9, fontWeight: 700, color: row.color,
+            minWidth: 44, textAlign: 'right', flex: '0 0 44px',
+          }}>
+            {row.lbl}
+          </span>
+          {/* 기여도 바 */}
+          <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#e8e4f6', overflow: 'hidden', minWidth: 40 }}>
+            <div style={{
+              height: '100%', borderRadius: 3,
+              width: `${row.pct}%`,
+              background: row.positive ? row.color : '#d1d5db',
+              opacity: row.positive ? 0.85 : 0.4,
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+          {/* 기여도 % */}
+          <span style={{
+            fontSize: 9, fontWeight: 700, flex: '0 0 28px', textAlign: 'right',
+            color: row.positive ? row.color : '#9ca3af',
+          }}>
+            {row.contrib > 0 ? '+' : ''}{(row.contrib * 100).toFixed(0)}%
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -577,8 +649,14 @@ export default function TechnicalPanel({ ticker }: Props) {
                     }} />
                   </div>
                 </div>
+
+                {/* ── 4축 인라인 기여도 ── */}
+                {tradingSignal.breakdown && (
+                  <MiniBreakdown bd={tradingSignal.breakdown} mainColor={cfg.color} />
+                )}
+
                 {/* 근거 */}
-                {tradingSignal.reason && (
+                {tradingSignal.reason && !tradingSignal.breakdown && (
                   <div style={{ flex: 2, minWidth: 160, fontSize: 12, color: cfg.color, lineHeight: 1.5 }}>
                     💬 {tradingSignal.reason}
                   </div>
@@ -591,7 +669,7 @@ export default function TechnicalPanel({ ticker }: Props) {
                       background: cfg.color, border: 'none', borderRadius: 8,
                       padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap',
                     }}>
-                    근거 보기 →
+                    상세 보기 →
                   </button>
                   <div style={{ fontSize: 10, color: cfg.color, opacity: 0.6, whiteSpace: 'nowrap' }}>
                     ⚠️ 참고용 / 투자 조언 아님

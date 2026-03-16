@@ -1,6 +1,7 @@
 'use client'
 
 import type { TradingSignal, SignalBreakdown, ContributingNews } from '@/types'
+import { scoreToLabel, scoreToColor } from '@/components/SentimentGauge'
 
 interface Props {
   signal: TradingSignal
@@ -8,8 +9,7 @@ interface Props {
 }
 
 // ── 색상 헬퍼 ─────────────────────────────────────────────────
-const scoreColor = (score: number) =>
-  score > 0.3 ? '#16a34a' : score > 0 ? '#22c55e' : score > -0.3 ? '#f97316' : '#ef4444'
+const scoreColor = scoreToColor
 
 const sentimentColor = (label: string) =>
   label === 'POSITIVE' ? '#22c55e' : label === 'NEGATIVE' ? '#ef4444' : '#8b7fd4'
@@ -43,9 +43,10 @@ function BreakdownBar({
           <span style={{ color: '#18162a', fontWeight: 600 }}>{label}</span>
           <span className="px-1.5 py-0.5 rounded-full text-xs"
             style={{ background: '#f0eefb', color: '#8b7fd4' }}>{weight}</span>
+          <span style={{ fontWeight: 700, color }}>{scoreToLabel(score)}</span>
         </div>
         <span className="font-mono font-bold text-xs" style={{ color }}>
-          {contrib > 0 ? `+${contrib.toFixed(3)}` : contrib.toFixed(3)}
+          {contrib > 0 ? `+${contrib.toFixed(2)}` : contrib.toFixed(2)}
         </span>
       </div>
       <div className="relative h-2 rounded-full" style={{ background: '#f0eefb', overflow: 'visible' }}>
@@ -171,7 +172,7 @@ export default function SignalDetailModal({ signal, onClose }: Props) {
             <div>
               <p className="text-xs font-semibold mb-3" style={{ color: '#5e5a78' }}>
                 📊 4축 종합 분석 (종합 점수: {signal.combinedScore != null
-                  ? (signal.combinedScore > 0 ? `+${signal.combinedScore.toFixed(3)}` : signal.combinedScore.toFixed(3))
+                  ? (signal.combinedScore > 0 ? `+${signal.combinedScore.toFixed(2)}` : signal.combinedScore.toFixed(2))
                   : '-'})
               </p>
               <div className="space-y-4">
