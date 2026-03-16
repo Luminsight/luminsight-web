@@ -25,15 +25,32 @@ type FilterTab = 'all' | 'unread' | 'high'
 type MainTab   = 'history' | 'settings'
 
 // ── 유틸 ─────────────────────────────────────────────────────
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
+function timeAgo(dateStr: string | undefined | null): string {
+  if (!dateStr) return '시간 정보 없음'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '시간 정보 없음'
+  const diff = Date.now() - d.getTime()
+  if (diff < 0) return '방금 전'
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return '방금 전'
   if (mins < 60) return `${mins}분 전`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}시간 전`
   if (hrs < 168) return `${Math.floor(hrs / 24)}일 전`
-  return new Date(dateStr).toLocaleDateString('ko-KR')
+  return d.toLocaleDateString('ko-KR')
+}
+
+function formatExactTime(dateStr: string | undefined | null): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const month  = d.getMonth() + 1
+  const day    = d.getDate()
+  const hour   = d.getHours()
+  const minute = d.getMinutes()
+  const second = d.getSeconds()
+  return `${month}/${day} ${pad(hour)}:${pad(minute)}:${pad(second)}`
 }
 
 function translateAlertType(type: string): string {
@@ -90,9 +107,17 @@ function AlertCard({ alert, onMarkRead }: { alert: Alert; onMarkRead: (id: numbe
           <p className="text-sm leading-relaxed" style={{ color: alert.isRead ? '#9e9ab8' : '#18162a' }}>
             {alert.message}
           </p>
-          <p className="text-xs mt-2" style={{ color: '#c4c0d8' }}>
-            {timeAgo(alert.createdAt)}
-            {!alert.isRead && <span className="ml-2" style={{ color: '#8b7fd4' }}>클릭하면 읽음 처리</span>}
+          <p className="text-xs mt-2 flex items-center gap-1.5 flex-wrap" style={{ color: '#c4c0d8' }}
+             suppressHydrationWarning>
+            <span suppressHydrationWarning>{timeAgo(alert.createdAt)}</span>
+            {formatExactTime(alert.createdAt) && (
+              <span style={{ color: '#d4cff2' }}>·</span>
+            )}
+            <span style={{ color: '#b8b4d0', fontVariantNumeric: 'tabular-nums' }}
+                  suppressHydrationWarning>
+              {formatExactTime(alert.createdAt)}
+            </span>
+            {!alert.isRead && <span className="ml-1" style={{ color: '#8b7fd4' }}>클릭하면 읽음 처리</span>}
           </p>
         </div>
       </div>
@@ -495,8 +520,9 @@ export default function AlertsPage() {
     setLoading(true); setError(null)
     try {
       const data = await alertApi.getAlerts()
-      setAlerts(data)
-      applyFilter(data, activeTab)
+      const safeData = Array.isArray(data) ? data : []
+      setAlerts(safeData)
+      applyFilter(safeData, activeTab)
     } catch (e) {
       setError(e instanceof Error ? e.message : '알림을 불러올 수 없습니다.')
     } finally {
@@ -505,9 +531,10 @@ export default function AlertsPage() {
   }, [activeTab])
 
   const applyFilter = (all: Alert[], tab: FilterTab) => {
-    if (tab === 'unread') setFiltered(all.filter(a => !a.isRead))
-    else if (tab === 'high') setFiltered(all.filter(a => a.severity === 'CRITICAL'))
-    else setFiltered(all)
+    const safeAll = Array.isArray(all) ? all : []
+    if (tab === 'unread') setFiltered(safeAll.filter(a => !a.isRead))
+    else if (tab === 'high') setFiltered(safeAll.filter(a => a.severity === 'CRITICAL'))
+    else setFiltered(safeAll)
   }
 
   const handleTabChange = (tab: FilterTab) => {

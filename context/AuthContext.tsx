@@ -34,22 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   /**
-   * JWT를 Authorization 헤더에 주입하도록 axios 인터셉터 설정
-   */
-  useEffect(() => {
-    const interceptorId = api.interceptors.request.use((config) => {
-      const token = localStorage.getItem(TOKEN_KEY)
-      if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`
-      }
-      return config
-    })
-
-    return () => api.interceptors.request.eject(interceptorId)
-  }, [])
-
-  /**
    * 앱 로드 시 저장된 JWT로 사용자 정보 복원
+   * (JWT 인터셉터는 lib/api.ts 모듈 레벨에서 처리 — 타이밍 race condition 방지)
    */
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)

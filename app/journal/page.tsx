@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { journalApi, tradingApi, stockApi } from '@/lib/api'
 import type { JournalEntry, CreateJournalRequest, PositionSummary, InvestOpinion, TradeType, SentimentLabel } from '@/types'
 
@@ -9,6 +9,58 @@ import type { JournalEntry, CreateJournalRequest, PositionSummary, InvestOpinion
 // ──────────────────────────────────────────────
 
 const FALLBACK_TICKERS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL', 'META', 'AMZN']
+
+// 티커 → 회사명 매핑 (자동완성 검색용)
+const STOCK_NAMES: Record<string, string> = {
+  AAPL: 'Apple',
+  TSLA: 'Tesla',
+  NVDA: 'NVIDIA',
+  MSFT: 'Microsoft',
+  GOOGL: 'Alphabet (Google)',
+  META: 'Meta Platforms',
+  AMZN: 'Amazon',
+  NFLX: 'Netflix',
+  AMD: 'AMD',
+  INTC: 'Intel',
+  ORCL: 'Oracle',
+  CRM: 'Salesforce',
+  ADBE: 'Adobe',
+  PYPL: 'PayPal',
+  UBER: 'Uber',
+  LYFT: 'Lyft',
+  SNAP: 'Snap',
+  SPOT: 'Spotify',
+  COIN: 'Coinbase',
+  PLTR: 'Palantir',
+  RBLX: 'Roblox',
+  HOOD: 'Robinhood',
+  ABNB: 'Airbnb',
+  DASH: 'DoorDash',
+  RIVN: 'Rivian',
+  LCID: 'Lucid Motors',
+  NIO: 'NIO',
+  BABA: 'Alibaba',
+  JD: 'JD.com',
+  BIDU: 'Baidu',
+  JPM: 'JPMorgan Chase',
+  BAC: 'Bank of America',
+  GS: 'Goldman Sachs',
+  MS: 'Morgan Stanley',
+  V: 'Visa',
+  MA: 'Mastercard',
+  BRK: 'Berkshire Hathaway',
+  UNH: 'UnitedHealth',
+  JNJ: 'Johnson & Johnson',
+  PFE: 'Pfizer',
+  MRNA: 'Moderna',
+  SPY: 'S&P 500 ETF',
+  QQQ: 'Nasdaq 100 ETF',
+  DIS: 'Disney',
+  NKLA: 'Nikola',
+  SOFI: 'SoFi Technologies',
+  GME: 'GameStop',
+  AMC: 'AMC Entertainment',
+}
 
 const fmt = {
   price:  (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -53,6 +105,224 @@ function sentimentSnapshotText(label: SentimentLabel | null, score: number | nul
   const prefix = label === 'POSITIVE' ? '긍정' : label === 'NEGATIVE' ? '부정' : '중립'
   const num = score != null ? ` ${score > 0 ? '+' : ''}${score.toFixed(2)}` : ''
   return prefix + num
+}
+
+// 티커 → 한글 회사명 매핑
+const STOCK_NAMES_KO: Record<string, string> = {
+  AAPL: '애플', TSLA: '테슬라', NVDA: '엔비디아', MSFT: '마이크로소프트',
+  GOOGL: '알파벳 (구글)', META: '메타 플랫폼스', AMZN: '아마존', NFLX: '넷플릭스',
+  AMD: 'AMD', INTC: '인텔', ORCL: '오라클', CRM: '세일즈포스', ADBE: '어도비',
+  PYPL: '페이팔', UBER: '우버', LYFT: '리프트', SNAP: '스냅', SPOT: '스포티파이',
+  COIN: '코인베이스', PLTR: '팔란티어', RBLX: '로블록스', HOOD: '로빈후드',
+  ABNB: '에어비앤비', DASH: '도어대시', RIVN: '리비안', LCID: '루시드 모터스',
+  NIO: '니오', BABA: '알리바바', JD: 'JD닷컴', BIDU: '바이두',
+  JPM: 'JP모건 체이스', BAC: '뱅크오브아메리카', GS: '골드만삭스', MS: '모건스탠리',
+  V: '비자', MA: '마스터카드', BRK: '버크셔 해서웨이', UNH: '유나이티드헬스',
+  JNJ: '존슨앤존슨', PFE: '화이자', MRNA: '모더나', SPY: 'S&P 500 ETF',
+  QQQ: '나스닥 100 ETF', DIS: '디즈니', GME: '게임스탑', SOFI: '소파이',
+}
+
+function isKorean(s: string): boolean {
+  return /[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(s)
+}
+
+// ──────────────────────────────────────────────
+// 티커 자동완성 검색 컴포넌트
+// (모달 종목 입력 + 향후 재사용 가능)
+// ──────────────────────────────────────────────
+
+function TickerSearchInput({
+  value,
+  onChange,
+  tickers,
+  placeholder = '종목명 또는 티커 검색',
+  inputWidth = '180px',
+  autoFocus = false,
+}: {
+  value: string
+  onChange: (ticker: string) => void
+  tickers: string[]
+  placeholder?: string
+  inputWidth?: string
+  autoFocus?: boolean
+}) {
+  const [inputVal, setInputVal]   = useState(value)
+  const [open, setOpen]           = useState(false)
+  const [focused, setFocused]     = useState(false)
+  const [focusedIdx, setFocusedIdx] = useState(-1)
+  const wrapRef                   = useRef<HTMLDivElement>(null)
+  const listRef                   = useRef<HTMLDivElement>(null)
+
+  // 부모 value 변경 시 동기화
+  useEffect(() => { setInputVal(value) }, [value])
+
+  // 바깥 클릭 시 닫기
+  useEffect(() => {
+    function onOut(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setFocused(false)
+        setFocusedIdx(-1)
+      }
+    }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [])
+
+  // 후보 목록 — 한글이면 한글명, 영문이면 티커+영문명 검색
+  const rawQuery = inputVal.trim()
+  const ko = isKorean(rawQuery)
+  const queryUp = rawQuery.toUpperCase()
+  const candidates = rawQuery.length === 0
+    ? []
+    : tickers.filter(t => {
+        if (ko) {
+          return (STOCK_NAMES_KO[t] ?? '').includes(rawQuery)
+        }
+        const enName = (STOCK_NAMES[t] ?? '').toUpperCase()
+        return t.startsWith(queryUp) || enName.includes(queryUp)
+      }).slice(0, 8)
+
+  // focusedIdx 범위 보정
+  useEffect(() => { setFocusedIdx(-1) }, [rawQuery])
+
+  function select(ticker: string) {
+    setInputVal(ticker)
+    setOpen(false)
+    setFocused(false)
+    setFocusedIdx(-1)
+    onChange(ticker)
+  }
+
+  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value
+    // 영문 입력이면 대문자 변환, 한글은 그대로
+    setInputVal(isKorean(v) ? v : v.toUpperCase())
+    setOpen(true)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || candidates.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setFocusedIdx(prev => {
+        const next = Math.min(prev + 1, candidates.length - 1)
+        // 스크롤 처리
+        listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' })
+        return next
+      })
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusedIdx(prev => {
+        const next = Math.max(prev - 1, 0)
+        listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' })
+        return next
+      })
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const idx = focusedIdx >= 0 ? focusedIdx : 0
+      if (candidates[idx]) select(candidates[idx])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+      setFocusedIdx(-1)
+    }
+  }
+
+  const isActive = value !== ''
+
+  return (
+    <div ref={wrapRef} className="relative" style={{ width: inputWidth }}>
+      <div className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl w-full"
+        style={{
+          background: '#f8f7fd',
+          border: `1.5px solid ${isActive ? '#8b7fd4' : focused ? '#c4bcec' : '#e0dcf5'}`,
+          transition: 'border-color 0.15s',
+        }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke={isActive ? '#8b7fd4' : '#b0aacf'} strokeWidth="2.5" style={{ flexShrink: 0 }}>
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input
+          value={inputVal}
+          onChange={handleInput}
+          onFocus={() => { setFocused(true); if (inputVal.length > 0) setOpen(true) }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          maxLength={20}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            fontSize: '14px',
+            color: isActive ? '#8b7fd4' : '#333',
+            flex: 1,
+            minWidth: 0,
+          }}
+        />
+        {inputVal && (
+          <button type="button"
+            onMouseDown={e => { e.preventDefault(); setInputVal(''); onChange('') }}
+            style={{ lineHeight: 1, color: '#b0aacf', flexShrink: 0 }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* 자동완성 드롭다운 */}
+      {open && candidates.length > 0 && (
+        <div ref={listRef}
+          className="absolute left-0 top-full mt-1 z-50 rounded-xl overflow-y-auto"
+          style={{
+            background: '#fff',
+            boxShadow: '0 8px 28px rgba(139,127,212,0.20)',
+            border: '1px solid #ece9f5',
+            width: '100%',
+            minWidth: '220px',
+            maxHeight: '280px',
+          }}>
+          {candidates.map((t, i) => {
+            const isFocused = i === focusedIdx
+            return (
+              <button key={t} type="button"
+                onMouseDown={e => { e.preventDefault(); select(t) }}
+                onMouseEnter={() => setFocusedIdx(i)}
+                className="w-full flex items-center gap-2.5 px-3 py-3 text-left"
+                style={{
+                  background: isFocused ? '#f0eefb' : 'transparent',
+                  borderBottom: i < candidates.length - 1 ? '1px solid #f3f0fd' : 'none',
+                  transition: 'background 0.1s',
+                }}>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-white"
+                  style={{ background: isFocused ? '#6a5fc4' : '#8b7fd4', minWidth: '44px', justifyContent: 'center' }}>
+                  {t}
+                </span>
+                <span style={{ flex: 1 }}>
+                  <span className="text-sm font-medium" style={{ color: '#18162a' }}>
+                    {ko ? (STOCK_NAMES_KO[t] ?? t) : (STOCK_NAMES[t] ?? t)}
+                  </span>
+                  {ko && STOCK_NAMES[t] && (
+                    <span className="text-xs ml-1.5" style={{ color: '#9e9ab8' }}>{STOCK_NAMES[t]}</span>
+                  )}
+                  {!ko && STOCK_NAMES_KO[t] && (
+                    <span className="text-xs ml-1.5" style={{ color: '#9e9ab8' }}>{STOCK_NAMES_KO[t]}</span>
+                  )}
+                </span>
+                {isFocused && (
+                  <span className="text-xs" style={{ color: '#8b7fd4' }}>↵</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ──────────────────────────────────────────────
@@ -417,32 +687,45 @@ function AddJournalModal({ onClose, onSaved, portfolio, tickers }: {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 티커 + 구분 */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">종목</label>
-              <select
-                value={form.ticker} onChange={e => set('ticker', e.target.value)}
-                className={inputCls} style={inputStyle}
-              >
-                {tickers.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">구분</label>
-              <div className="flex gap-2">
-                {(['BUY', 'SELL'] as TradeType[]).map(t => (
-                  <button key={t} type="button" onClick={() => set('tradeType', t)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                    style={{
-                      background: form.tradeType === t ? TRADE_COLOR[t].bg : '#f8f7fd',
-                      color: form.tradeType === t ? '#fff' : '#9e9ab8',
-                      border: `1.5px solid ${form.tradeType === t ? TRADE_COLOR[t].bg : '#ece9f5'}`,
-                    }}>
-                    {t === 'BUY' ? '매수' : '매도'}
-                  </button>
-                ))}
+          {/* 종목 검색 + 구분 */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">종목</label>
+            <TickerSearchInput
+              value={form.ticker}
+              onChange={ticker => { if (ticker) set('ticker', ticker) }}
+              tickers={tickers}
+              placeholder="티커 또는 종목명 검색 (예: 애플, AAPL)"
+              inputWidth="100%"
+            />
+            {/* 선택된 종목 표시 */}
+            {form.ticker && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-white"
+                  style={{ background: '#8b7fd4' }}>{form.ticker}</span>
+                <span className="text-xs" style={{ color: '#9e9ab8' }}>
+                  {STOCK_NAMES_KO[form.ticker]
+                    ? `${STOCK_NAMES_KO[form.ticker]} · ${STOCK_NAMES[form.ticker] ?? ''}`
+                    : (STOCK_NAMES[form.ticker] ?? '')}
+                </span>
               </div>
+            )}
+          </div>
+
+          {/* 구분 */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">구분</label>
+            <div className="flex gap-2">
+              {(['BUY', 'SELL'] as TradeType[]).map(t => (
+                <button key={t} type="button" onClick={() => set('tradeType', t)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: form.tradeType === t ? TRADE_COLOR[t].bg : '#f8f7fd',
+                    color: form.tradeType === t ? '#fff' : '#9e9ab8',
+                    border: `1.5px solid ${form.tradeType === t ? TRADE_COLOR[t].bg : '#ece9f5'}`,
+                  }}>
+                  {t === 'BUY' ? '매수' : '매도'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1247,6 +1530,7 @@ export default function JournalPage() {
   const [portfolio, setPortfolio]   = useState<PositionSummary[]>([])
   const [tickers, setTickers]       = useState<string[]>(FALLBACK_TICKERS)
   const [loading, setLoading]       = useState(true)
+  const [authError, setAuthError]   = useState(false)
   const [showAdd, setShowAdd]       = useState(false)
   const [filterTicker, setFilterTicker] = useState('')
   const [activeTab, setActiveTab]   = useState<'list' | 'portfolio' | 'insights'>('list')
@@ -1260,14 +1544,58 @@ export default function JournalPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    setAuthError(false)
     try {
-      const [j, p] = await Promise.all([
+      // Promise.allSettled: 둘 중 하나 실패해도 나머지 결과는 반영
+      const [journalResult, portfolioResult] = await Promise.allSettled([
         journalApi.getJournals(filterTicker ? { ticker: filterTicker } : undefined),
         journalApi.getPortfolioSummary(),
       ])
-      setEntries(j)
-      setPortfolio(p)
-    } catch { /* 에러 시 빈 배열 유지 */ }
+
+      // 두 요청 모두 실패 → 인증 오류 감지
+      const bothFailed = journalResult.status === 'rejected' && portfolioResult.status === 'rejected'
+      if (bothFailed) {
+        const errMsg = (journalResult.reason as Error)?.message ?? ''
+        if (errMsg.includes('인증') || errMsg.includes('로그인')) {
+          setAuthError(true)
+        }
+        setLoading(false)
+        return
+      }
+
+      const safeJ = journalResult.status === 'fulfilled'
+        ? (Array.isArray(journalResult.value) ? journalResult.value : [])
+        : null
+      const safeP = portfolioResult.status === 'fulfilled'
+        ? (Array.isArray(portfolioResult.value) ? portfolioResult.value : [])
+        : null
+
+      // 포트폴리오 독립 반영
+      if (safeP !== null) setPortfolio(safeP)
+
+      // 폴백 조건: 필터 없음 + (실패 OR 빈 배열 반환) + portfolio에 실제 종목 있음
+      const needsFallback = !filterTicker
+        && (safeJ === null || safeJ.length === 0)
+        && safeP !== null && safeP.length > 0
+
+      if (needsFallback) {
+        // GET /api/journal 이 빈 배열 반환 → 포트폴리오 티커별 개별 조회 후 합산
+        const ptickers = safeP!.map(p => p.ticker)
+        const results = await Promise.allSettled(
+          ptickers.map(t => journalApi.getJournals({ ticker: t }))
+        )
+        const combined = results
+          .filter((r): r is PromiseFulfilledResult<JournalEntry[]> => r.status === 'fulfilled')
+          .flatMap(r => r.value)
+          .sort((a, b) => {
+            const d = new Date(b.tradeDate).getTime() - new Date(a.tradeDate).getTime()
+            return d !== 0 ? d : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })
+        setEntries(combined)
+      } else {
+        setEntries(safeJ ?? [])
+      }
+    } catch { /* 예외적 전체 실패 시 빈 배열 유지 */ }
     finally { setLoading(false) }
   }, [filterTicker])
 
@@ -1335,6 +1663,50 @@ export default function JournalPage() {
           ))}
         </div>
 
+        {/* ── 인증 오류 배너 ── */}
+        {authError && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
+            style={{ background: '#fff1f3', border: '1.5px solid #fda4af' }}>
+            <span className="text-lg">🔒</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold" style={{ color: '#e11d48' }}>로그인이 필요합니다</p>
+              <p className="text-xs mt-0.5" style={{ color: '#9e9ab8' }}>투자 일지를 보려면 로그인 후 이용해 주세요.</p>
+            </div>
+            <a href="/login"
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+              style={{ background: '#e11d48' }}>
+              로그인
+            </a>
+          </div>
+        )}
+
+        {/* ── 공유 티커 필터 (탭 위) — 내 투자 종목만 표시 ── */}
+        {portfolio.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setFilterTicker('')}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+              style={{
+                background: filterTicker === '' ? '#8b7fd4' : '#ffffff',
+                color:      filterTicker === '' ? '#fff' : '#9e9ab8',
+                border:     `1.5px solid ${filterTicker === '' ? '#8b7fd4' : '#ece9f5'}`,
+              }}>
+              전체
+            </button>
+
+            {portfolio.map(p => p.ticker).sort().map(t => (
+              <button key={t} onClick={() => setFilterTicker(filterTicker === t ? '' : t)}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+                style={{
+                  background: filterTicker === t ? '#f0eefb' : '#ffffff',
+                  color:      filterTicker === t ? '#8b7fd4' : '#9e9ab8',
+                  border:     `1.5px solid ${filterTicker === t ? '#8b7fd4' : '#ece9f5'}`,
+                }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* 탭 */}
         <div className="flex gap-1 rounded-xl p-1 w-full sm:w-fit" style={{ background: '#ece9f5' }}>
           {([
@@ -1357,74 +1729,57 @@ export default function JournalPage() {
 
         {/* ── 매매 기록 탭 ── */}
         {activeTab === 'list' && (
-          <>
-            {/* 티커 필터 */}
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={() => setFilterTicker('')}
-                className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-                style={{
-                  background: filterTicker === '' ? '#8b7fd4' : '#ffffff',
-                  color:      filterTicker === '' ? '#fff' : '#9e9ab8',
-                  border:     `1.5px solid ${filterTicker === '' ? '#8b7fd4' : '#ece9f5'}`,
-                }}>
-                전체
-              </button>
-              {tickers.map(t => (
-                <button key={t} onClick={() => setFilterTicker(filterTicker === t ? '' : t)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-                  style={{
-                    background: filterTicker === t ? '#f0eefb' : '#ffffff',
-                    color:      filterTicker === t ? '#8b7fd4' : '#9e9ab8',
-                    border:     `1.5px solid ${filterTicker === t ? '#8b7fd4' : '#ece9f5'}`,
-                  }}>
-                  {t}
-                </button>
+          loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: '#e9e6f5' }} />
               ))}
             </div>
-
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: '#e9e6f5' }} />
-                ))}
-              </div>
-            ) : entries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl"
-                style={{ background: '#ffffff', boxShadow: '0 2px 12px rgba(139,127,212,0.08)' }}>
-                <div className="text-4xl mb-3">📭</div>
-                <p className="text-gray-500 font-medium">기록이 없습니다</p>
-                <p className="text-gray-400 text-sm mt-1">&quot;기록 추가&quot; 버튼으로 첫 매매를 기록해보세요.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {entries.map(e => (
-                  <JournalRow key={e.id} entry={e} onDelete={handleDelete} />
-                ))}
-              </div>
-            )}
-          </>
+          ) : entries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 rounded-2xl"
+              style={{ background: '#ffffff', boxShadow: '0 2px 12px rgba(139,127,212,0.08)' }}>
+              <div className="text-4xl mb-3">📭</div>
+              <p className="text-gray-500 font-medium">
+                {filterTicker ? `${filterTicker} 매매 기록이 없습니다` : '기록이 없습니다'}
+              </p>
+              <p className="text-gray-400 text-sm mt-1">&quot;추가&quot; 버튼으로 첫 매매를 기록해보세요.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {entries.map(e => (
+                <JournalRow key={e.id} entry={e} onDelete={handleDelete} />
+              ))}
+            </div>
+          )
         )}
 
         {/* ── 포지션 요약 탭 ── */}
-        {activeTab === 'portfolio' && (
-          loading ? (
+        {activeTab === 'portfolio' && (() => {
+          // filterTicker 설정 시 해당 티커만 표시
+          const visiblePortfolio = filterTicker
+            ? portfolio.filter(p => p.ticker === filterTicker)
+            : portfolio
+
+          return loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[1, 2].map(i => (
                 <div key={i} className="h-40 rounded-2xl animate-pulse" style={{ background: '#e9e6f5' }} />
               ))}
             </div>
-          ) : portfolio.length === 0 ? (
+          ) : visiblePortfolio.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 rounded-2xl"
               style={{ background: '#ffffff', boxShadow: '0 2px 12px rgba(139,127,212,0.08)' }}>
               <div className="text-4xl mb-3">📊</div>
-              <p className="text-gray-500 font-medium">매매 기록이 없습니다</p>
+              <p className="text-gray-500 font-medium">
+                {filterTicker ? `${filterTicker} 포지션이 없습니다` : '매매 기록이 없습니다'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {portfolio.map(p => <PositionCard key={p.ticker} pos={p} />)}
+              {visiblePortfolio.map(p => <PositionCard key={p.ticker} pos={p} />)}
             </div>
           )
-        )}
+        })()}
 
         {/* ── 내 패턴 탭 ── */}
         {activeTab === 'insights' && (
@@ -1433,6 +1788,15 @@ export default function JournalPage() {
               {[1, 2, 3].map(i => (
                 <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: '#e9e6f5' }} />
               ))}
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 rounded-2xl"
+              style={{ background: '#ffffff', boxShadow: '0 2px 12px rgba(139,127,212,0.08)' }}>
+              <div className="text-4xl mb-3">📈</div>
+              <p className="text-gray-500 font-medium">
+                {filterTicker ? `${filterTicker} 매매 기록이 없습니다` : '매매 기록이 없습니다'}
+              </p>
+              <p className="text-gray-400 text-sm mt-1">기록을 추가하면 패턴이 분석됩니다.</p>
             </div>
           ) : (
             <InsightsTab entries={entries} portfolio={portfolio} />

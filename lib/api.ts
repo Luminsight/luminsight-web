@@ -91,8 +91,20 @@ export const api = axios.create({
 })
 
 // ── 요청 인터셉터 ──────────────────────────────────────────────
+// 모듈 레벨에서 JWT를 읽어 첨부 — React useEffect 타이밍에 의존하지 않음
+// (AuthContext useEffect 보다 journal 페이지 loadData가 먼저 실행되는 race condition 방지)
+const JWT_TOKEN_KEY = 'luminsight_jwt'
+
 api.interceptors.request.use(
-  (config) => config,
+  (config) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem(JWT_TOKEN_KEY)
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+    return config
+  },
   (error) => Promise.reject(error)
 )
 
@@ -234,7 +246,7 @@ export const alertApi = {
     const params: Record<string, unknown> = { unreadOnly }
     if (ticker) params.ticker = ticker
     const response = await api.get('/alerts', { params })
-    return response.data.alerts
+    return response.data.alerts ?? []
   },
 
   markAsRead: async (alertId: number): Promise<void> => {
@@ -355,7 +367,7 @@ export const journalApi = {
   /** 목록 조회 (ticker, from, to 선택) */
   getJournals: async (params?: { ticker?: string; from?: string; to?: string }): Promise<JournalEntry[]> => {
     const response = await api.get('/journal', { params })
-    return response.data
+    return Array.isArray(response.data) ? response.data : (response.data ?? [])
   },
 
   /** 단일 항목 조회 */
@@ -384,7 +396,7 @@ export const journalApi = {
   /** 전체 포트폴리오 요약 */
   getPortfolioSummary: async (): Promise<PositionSummary[]> => {
     const response = await api.get('/journal/portfolio')
-    return response.data
+    return Array.isArray(response.data) ? response.data : (response.data ?? [])
   },
 
   /** 티커별 포지션 요약 */
@@ -396,7 +408,7 @@ export const journalApi = {
   /** AI 역행 매매 기록 */
   getContraryTrades: async (): Promise<JournalEntry[]> => {
     const response = await api.get('/journal/contrary')
-    return response.data
+    return Array.isArray(response.data) ? response.data : (response.data ?? [])
   },
 }
 
