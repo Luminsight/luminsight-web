@@ -160,7 +160,7 @@ const AXIS_META = [
 ] as const
 
 // 어떤 축이 신호를 주도하는지 자동 태그 생성
-function autoTag(bd: SignalBreakdown): { text: string; color: string } | null {
+function autoTag(bd: SignalBreakdown): { text: string; color: string; axisKey: string | null } | null {
   const techAbs = Math.abs(bd.technicalContrib)
   const sentAbs = Math.abs(bd.sentimentContrib)
   const fundAbs = Math.abs(bd.fundamentalContrib)
@@ -172,19 +172,23 @@ function autoTag(bd: SignalBreakdown): { text: string; color: string } | null {
   const fundPct = fundAbs / total
 
   if (techPct < 0.15 && (sentPct + fundPct) > 0.7)
-    return { text: '감성·펀더멘털 주도', color: '#8b7fd4' }
+    return { text: '감성·펀더멘털 주도', color: '#8b7fd4', axisKey: 'sentiment' }
   if (sentPct > 0.5)
-    return { text: '뉴스 감성 주도', color: '#f97316' }
+    return { text: '뉴스 감성 주도', color: '#f97316', axisKey: 'sentiment' }
   if (fundPct > 0.4)
-    return { text: '펀더멘털 주도', color: '#22c55e' }
+    return { text: '펀더멘털 주도', color: '#22c55e', axisKey: 'fundamental' }
   if (techPct > 0.5)
-    return { text: '기술적 분석 주도', color: '#6366f1' }
+    return { text: '기술적 분석 주도', color: '#6366f1', axisKey: 'technical' }
   if (bd.earningsRisk)
-    return { text: '어닝 리스크 주의', color: '#ef4444' }
+    return { text: '어닝 리스크 주의', color: '#ef4444', axisKey: null }
   return null
 }
 
-function MiniBreakdown({ bd, mainColor }: { bd: SignalBreakdown; mainColor: string }) {
+function MiniBreakdown({ bd, mainColor, onTagClick }: {
+  bd: SignalBreakdown
+  mainColor: string
+  onTagClick?: (axisKey: string | null) => void
+}) {
   const rows = AXIS_META.map(({ key, label, weight, detailKey }) => {
     const score   = bd[`${key}Score`  as keyof SignalBreakdown] as number
     const contrib = bd[`${key}Contrib` as keyof SignalBreakdown] as number
@@ -214,14 +218,21 @@ function MiniBreakdown({ bd, mainColor }: { bd: SignalBreakdown; mainColor: stri
           왜 이 신호인가?
         </p>
         {tag && (
-          <span style={{
-            fontSize: 9, fontWeight: 700,
-            color: tag.color,
-            background: tag.color + '18',
-            border: `1px solid ${tag.color}44`,
-            padding: '1px 6px', borderRadius: 6,
-          }}>
-            {tag.text}
+          <span
+            onClick={() => onTagClick?.(tag.axisKey)}
+            style={{
+              fontSize: 9, fontWeight: 700,
+              color: tag.color,
+              background: tag.color + '18',
+              border: `1px solid ${tag.color}44`,
+              padding: '1px 6px', borderRadius: 6,
+              cursor: onTagClick ? 'pointer' : 'default',
+              transition: 'opacity 0.15s',
+              userSelect: 'none',
+            }}
+            title="클릭하면 상세 보기에서 해당 축으로 이동"
+          >
+            {tag.text} {onTagClick && <span style={{ opacity: 0.6 }}>↗</span>}
           </span>
         )}
       </div>
@@ -442,6 +453,7 @@ export default function TechnicalPanel({ ticker }: Props) {
   const [showWeights, setShowWeights]         = useState(false)
   const [showDetail, setShowDetail]           = useState(false)
   const [showSignalDetail, setShowSignalDetail] = useState(false)
+  const [highlightAxis, setHighlightAxis]     = useState<string | null>(null)
 
   const [inds, setInds] = useState([
     { id: 'price',     label: '주가',       color: '#8b7fd4', on: true },
@@ -707,7 +719,14 @@ export default function TechnicalPanel({ ticker }: Props) {
 
                 {/* ── 4축 인라인 기여도 ── */}
                 {tradingSignal.breakdown && (
-                  <MiniBreakdown bd={tradingSignal.breakdown} mainColor={cfg.color} />
+                  <MiniBreakdown
+                    bd={tradingSignal.breakdown}
+                    mainColor={cfg.color}
+                    onTagClick={(axisKey) => {
+                      setHighlightAxis(axisKey)
+                      setShowSignalDetail(true)
+                    }}
+                  />
                 )}
 
                 {/* 근거 */}
@@ -984,7 +1003,8 @@ export default function TechnicalPanel({ ticker }: Props) {
       {showSignalDetail && tradingSignal && (
         <SignalDetailModal
           signal={tradingSignal}
-          onClose={() => setShowSignalDetail(false)}
+          highlightAxis={highlightAxis ?? undefined}
+          onClose={() => { setShowSignalDetail(false); setHighlightAxis(null) }}
         />
       )}
     </div>

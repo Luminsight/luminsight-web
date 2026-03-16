@@ -1,11 +1,13 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { TradingSignal, SignalBreakdown, ContributingNews } from '@/types'
 import { scoreToLabel, scoreToColor } from '@/components/SentimentGauge'
 
 interface Props {
   signal: TradingSignal
   onClose: () => void
+  highlightAxis?: string
 }
 
 // ── 색상 헬퍼 ─────────────────────────────────────────────────
@@ -25,25 +27,54 @@ const signalConfig = {
 
 // ── 4축 기여도 바 ──────────────────────────────────────────────
 function BreakdownBar({
-  label, weight, score, contrib, detail
+  label, weight, score, contrib, detail, axisKey, highlight
 }: {
   label: string
   weight: string
   score: number
   contrib: number
   detail?: string
+  axisKey?: string
+  highlight?: boolean
 }) {
+  const ref = useRef<HTMLDivElement>(null)
   const pct = ((score + 1) / 2) * 100
   const color = scoreColor(score)
 
+  useEffect(() => {
+    if (highlight && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlight])
+
   return (
-    <div className="space-y-1.5">
+    <div
+      ref={ref}
+      id={axisKey ? `breakdown-${axisKey}` : undefined}
+      className="space-y-1.5 rounded-xl transition-all duration-300"
+      style={{
+        padding: highlight ? '10px 12px' : '2px 0',
+        background: highlight ? (color + '10') : 'transparent',
+        border: highlight ? `1.5px solid ${color}44` : '1.5px solid transparent',
+        marginLeft: highlight ? -12 : 0,
+        marginRight: highlight ? -12 : 0,
+      }}
+    >
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
-          <span style={{ color: '#18162a', fontWeight: 600 }}>{label}</span>
+          <span style={{ color: '#18162a', fontWeight: highlight ? 800 : 600 }}>{label}</span>
           <span className="px-1.5 py-0.5 rounded-full text-xs"
             style={{ background: '#f0eefb', color: '#8b7fd4' }}>{weight}</span>
           <span style={{ fontWeight: 700, color }}>{scoreToLabel(score)}</span>
+          {highlight && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, color,
+              background: color + '18', border: `1px solid ${color}44`,
+              padding: '1px 5px', borderRadius: 5,
+            }}>
+              주도 축
+            </span>
+          )}
         </div>
         <span className="font-mono font-bold text-xs" style={{ color }}>
           {contrib > 0 ? `+${contrib.toFixed(2)}` : contrib.toFixed(2)}
@@ -111,7 +142,7 @@ function NewsCard({ news }: { news: ContributingNews }) {
 }
 
 // ── 메인 모달 ──────────────────────────────────────────────────
-export default function SignalDetailModal({ signal, onClose }: Props) {
+export default function SignalDetailModal({ signal, onClose, highlightAxis }: Props) {
   const cfg = signalConfig[signal.signal] ?? signalConfig.HOLD
   const bd = signal.breakdown
 
@@ -182,12 +213,16 @@ export default function SignalDetailModal({ signal, onClose }: Props) {
                   score={bd.technicalScore}
                   contrib={bd.technicalContrib}
                   detail={bd.technicalDetail || undefined}
+                  axisKey="technical"
+                  highlight={highlightAxis === 'technical'}
                 />
                 <BreakdownBar
                   label="뉴스 감성"
                   weight="30%"
                   score={bd.sentimentScore}
                   contrib={bd.sentimentContrib}
+                  axisKey="sentiment"
+                  highlight={highlightAxis === 'sentiment'}
                 />
                 <BreakdownBar
                   label="펀더멘털"
@@ -195,12 +230,16 @@ export default function SignalDetailModal({ signal, onClose }: Props) {
                   score={bd.fundamentalScore}
                   contrib={bd.fundamentalContrib}
                   detail={bd.fundamentalDetail || undefined}
+                  axisKey="fundamental"
+                  highlight={highlightAxis === 'fundamental'}
                 />
                 <BreakdownBar
                   label="시장 컨텍스트"
                   weight="10%"
                   score={bd.marketScore}
                   contrib={bd.marketContrib}
+                  axisKey="market"
+                  highlight={highlightAxis === 'market'}
                 />
               </div>
             </div>
