@@ -153,68 +153,123 @@ function ScoreGuide({ score }: { score: number }) {
 // ── MiniBreakdown (인라인 4축 기여도) ────────────────────────
 
 const AXIS_META = [
-  { key: 'technical',    label: '기술적',    weight: '40%' },
-  { key: 'sentiment',    label: '뉴스 감성', weight: '30%' },
-  { key: 'fundamental',  label: '펀더멘털',  weight: '20%' },
-  { key: 'market',       label: '시장',      weight: '10%' },
+  { key: 'technical',   label: '기술적',    weight: '40%', detailKey: 'technicalDetail'   },
+  { key: 'sentiment',   label: '뉴스 감성', weight: '30%', detailKey: null                },
+  { key: 'fundamental', label: '펀더멘털',  weight: '20%', detailKey: 'fundamentalDetail' },
+  { key: 'market',      label: '시장',      weight: '10%', detailKey: null                },
 ] as const
 
+// 어떤 축이 신호를 주도하는지 자동 태그 생성
+function autoTag(bd: SignalBreakdown): { text: string; color: string } | null {
+  const techAbs = Math.abs(bd.technicalContrib)
+  const sentAbs = Math.abs(bd.sentimentContrib)
+  const fundAbs = Math.abs(bd.fundamentalContrib)
+  const total   = techAbs + sentAbs + fundAbs + Math.abs(bd.marketContrib)
+  if (total === 0) return null
+
+  const techPct = techAbs / total
+  const sentPct = sentAbs / total
+  const fundPct = fundAbs / total
+
+  if (techPct < 0.15 && (sentPct + fundPct) > 0.7)
+    return { text: '감성·펀더멘털 주도', color: '#8b7fd4' }
+  if (sentPct > 0.5)
+    return { text: '뉴스 감성 주도', color: '#f97316' }
+  if (fundPct > 0.4)
+    return { text: '펀더멘털 주도', color: '#22c55e' }
+  if (techPct > 0.5)
+    return { text: '기술적 분석 주도', color: '#6366f1' }
+  if (bd.earningsRisk)
+    return { text: '어닝 리스크 주의', color: '#ef4444' }
+  return null
+}
+
 function MiniBreakdown({ bd, mainColor }: { bd: SignalBreakdown; mainColor: string }) {
-  const rows = AXIS_META.map(({ key, label, weight }) => {
-    const score  = bd[`${key}Score`  as keyof SignalBreakdown] as number
+  const rows = AXIS_META.map(({ key, label, weight, detailKey }) => {
+    const score   = bd[`${key}Score`  as keyof SignalBreakdown] as number
     const contrib = bd[`${key}Contrib` as keyof SignalBreakdown] as number
-    const color  = scoreToColor(score)
-    const lbl    = scoreToLabel(score)
-    // contrib: 양수면 주신호 방향 기여, 음수면 반대 기여
-    const pct    = Math.min(Math.abs(contrib) * 100, 100)
+    const color   = scoreToColor(score)
+    const lbl     = scoreToLabel(score)
+    const detail  = detailKey ? (bd[detailKey as keyof SignalBreakdown] as string | undefined) : undefined
+    const pct     = Math.min(Math.abs(contrib) * 100, 100)
     const positive = contrib >= 0
-    return { label, weight, score, contrib, color, lbl, pct, positive }
+    return { label, weight, score, contrib, color, lbl, pct, positive, detail }
   })
+
+  const tag = autoTag(bd)
 
   return (
     <div style={{
-      flex: 2, minWidth: 180,
+      flex: 2, minWidth: 190,
       background: '#ffffff40',
       borderRadius: 10,
       padding: '8px 12px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 5,
+      gap: 4,
     }}>
-      <p style={{ fontSize: 10, fontWeight: 700, color: mainColor, marginBottom: 2, opacity: 0.8 }}>
-        왜 이 신호인가?
-      </p>
+      {/* 헤더 + 자동 태그 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: mainColor, opacity: 0.85, margin: 0 }}>
+          왜 이 신호인가?
+        </p>
+        {tag && (
+          <span style={{
+            fontSize: 9, fontWeight: 700,
+            color: tag.color,
+            background: tag.color + '18',
+            border: `1px solid ${tag.color}44`,
+            padding: '1px 6px', borderRadius: 6,
+          }}>
+            {tag.text}
+          </span>
+        )}
+      </div>
+
       {rows.map(row => (
-        <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* 축 레이블 + 가중치 */}
-          <div style={{ minWidth: 54, flex: '0 0 54px' }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#4a4568' }}>{row.label}</span>
-            <span style={{ fontSize: 9, color: '#9e9ab8', marginLeft: 3 }}>{row.weight}</span>
+        <div key={row.label}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* 축 레이블 + 가중치 */}
+            <div style={{ minWidth: 62, flex: '0 0 62px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#4a4568' }}>{row.label}</span>
+              <span style={{ fontSize: 9, color: '#9e9ab8', marginLeft: 3 }}>{row.weight}</span>
+            </div>
+            {/* 점수 레이블 */}
+            <span style={{
+              fontSize: 9, fontWeight: 700, color: row.color,
+              minWidth: 44, textAlign: 'right', flex: '0 0 44px',
+            }}>
+              {row.lbl}
+            </span>
+            {/* 기여도 바 */}
+            <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#e8e4f6', overflow: 'hidden', minWidth: 40 }}>
+              <div style={{
+                height: '100%', borderRadius: 3,
+                width: `${row.pct}%`,
+                background: row.positive ? row.color : '#d1d5db',
+                opacity: row.positive ? 0.85 : 0.4,
+                transition: 'width 0.5s ease',
+              }} />
+            </div>
+            {/* 방향 아이콘 + 기여도 % */}
+            <span style={{
+              fontSize: 9, fontWeight: 700, flex: '0 0 34px', textAlign: 'right',
+              color: row.positive ? row.color : '#9ca3af',
+            }}>
+              {row.contrib > 0.005 ? '▲' : row.contrib < -0.005 ? '▼' : '–'}
+              {Math.abs(row.contrib * 100).toFixed(0)}%
+            </span>
           </div>
-          {/* 점수 레이블 */}
-          <span style={{
-            fontSize: 9, fontWeight: 700, color: row.color,
-            minWidth: 44, textAlign: 'right', flex: '0 0 44px',
-          }}>
-            {row.lbl}
-          </span>
-          {/* 기여도 바 */}
-          <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#e8e4f6', overflow: 'hidden', minWidth: 40 }}>
-            <div style={{
-              height: '100%', borderRadius: 3,
-              width: `${row.pct}%`,
-              background: row.positive ? row.color : '#d1d5db',
-              opacity: row.positive ? 0.85 : 0.4,
-              transition: 'width 0.5s ease',
-            }} />
-          </div>
-          {/* 기여도 % */}
-          <span style={{
-            fontSize: 9, fontWeight: 700, flex: '0 0 28px', textAlign: 'right',
-            color: row.positive ? row.color : '#9ca3af',
-          }}>
-            {row.contrib > 0 ? '+' : ''}{(row.contrib * 100).toFixed(0)}%
-          </span>
+          {/* 서브텍스트 (technicalDetail / fundamentalDetail) */}
+          {row.detail && (
+            <p style={{
+              fontSize: 9, color: '#9e9ab8', margin: '1px 0 0 0',
+              paddingLeft: 68, lineHeight: 1.3,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {row.detail}
+            </p>
+          )}
         </div>
       ))}
     </div>
