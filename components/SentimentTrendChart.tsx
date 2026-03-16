@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { sentimentApi } from '@/lib/api'
 import type { SentimentTimeSeries, SentimentTrend } from '@/types'
+import { scoreToLabel, scoreToColor } from '@/components/SentimentGauge'
 
 // ── 상수 ────────────────────────────────────────────────────────
 const ACCENT   = '#8b7fd4'
@@ -57,7 +58,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const d = payload[0]?.payload
   if (!d) return null
   const val   = d.score as number
-  const color = val > 0 ? POSITIVE : val < 0 ? NEGATIVE : '#8b8fa8'
+  const color = scoreToColor(val)
 
   return (
     <div style={{
@@ -70,9 +71,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       minWidth: 140,
     }}>
       <p style={{ color: '#9e9ab8', marginBottom: 6, fontWeight: 500 }}>{label}</p>
-      <p style={{ fontWeight: 700, color, fontSize: 15, marginBottom: 6 }}>
-        {val > 0 ? '+' : ''}{val.toFixed(3)}
+      <p style={{ fontWeight: 700, color, fontSize: 15, marginBottom: 2 }}>
+        {val > 0 ? '+' : ''}{val.toFixed(2)}
       </p>
+      <p style={{ fontSize: 11, color, marginBottom: 6 }}>{scoreToLabel(val)}</p>
       {d.totalCount > 0 && (
         <div style={{ borderTop: '1px solid #f3f1fa', paddingTop: 6, display: 'flex', gap: 10 }}>
           <span style={{ color: POSITIVE }}>↑ {d.positiveCount}</span>
@@ -176,13 +178,29 @@ export default function SentimentTrendChart({ ticker }: Props) {
       {/* ── 요약 수치 행 ─────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         {[
-          { label: '평균 점수', value: (summary.averageScore > 0 ? '+' : '') + summary.averageScore.toFixed(3), color: summary.averageScore > 0 ? POSITIVE : summary.averageScore < 0 ? NEGATIVE : '#8b8fa8' },
-          { label: '기간 변화', value: (scoreChange > 0 ? '+' : '') + scoreChange.toFixed(3), color: scoreChange > 0 ? POSITIVE : scoreChange < 0 ? NEGATIVE : '#8b8fa8' },
-          { label: '변동성',   value: (summary.volatility ?? 0).toFixed(3),                  color: (summary.volatility ?? 0) > 0.5 ? '#d97706' : '#8b8fa8' },
+          {
+            label: '평균 점수',
+            value: (summary.averageScore > 0 ? '+' : '') + summary.averageScore.toFixed(2),
+            sublabel: scoreToLabel(summary.averageScore),
+            color: scoreToColor(summary.averageScore),
+          },
+          {
+            label: '기간 변화',
+            value: (scoreChange > 0 ? '+' : '') + scoreChange.toFixed(2),
+            sublabel: scoreChange > 0.05 ? '상승' : scoreChange < -0.05 ? '하락' : '보합',
+            color: scoreChange > 0 ? POSITIVE : scoreChange < 0 ? NEGATIVE : '#8b8fa8',
+          },
+          {
+            label: '변동성',
+            value: (summary.volatility ?? 0).toFixed(2),
+            sublabel: (summary.volatility ?? 0) > 0.5 ? '높음' : (summary.volatility ?? 0) > 0.2 ? '보통' : '낮음',
+            color: (summary.volatility ?? 0) > 0.5 ? '#d97706' : '#8b8fa8',
+          },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#f8f7fd', borderRadius: 10, padding: '6px 12px', textAlign: 'center', flex: 1, minWidth: 70 }}>
             <p style={{ fontSize: 10, color: '#9e9ab8', margin: '0 0 2px' }}>{stat.label}</p>
             <p style={{ fontSize: 13, fontWeight: 700, color: stat.color, margin: 0 }}>{stat.value}</p>
+            <p style={{ fontSize: 10, color: stat.color, opacity: 0.8, margin: '1px 0 0' }}>{stat.sublabel}</p>
           </div>
         ))}
         {/* 감성 분포 */}
