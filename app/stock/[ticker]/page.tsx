@@ -18,6 +18,22 @@ import { useAuth } from '@/context/AuthContext'
 
 type SentimentFilter = 'ALL' | 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 type DetailTab = 'overview' | 'technical' | 'fundamental' | 'news'
+type DateRange = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH'
+
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'ALL',   label: '전체' },
+  { value: 'TODAY', label: '오늘' },
+  { value: 'WEEK',  label: '이번 주' },
+  { value: 'MONTH', label: '이번 달' },
+]
+
+function dateRangeStart(range: DateRange): number {
+  const now = Date.now()
+  if (range === 'TODAY') return new Date().setHours(0, 0, 0, 0)
+  if (range === 'WEEK')  return now - 7  * 24 * 60 * 60 * 1000
+  if (range === 'MONTH') return now - 30 * 24 * 60 * 60 * 1000
+  return 0
+}
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
@@ -60,6 +76,7 @@ export default function StockDetailPage() {
   const [error, setError]           = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
   const [filter, setFilter]         = useState<SentimentFilter>('ALL')
+  const [dateRange, setDateRange]   = useState<DateRange>('ALL')
   const [isKorean, setIsKorean]     = useState(true)
   const [activeTab, setActiveTab]   = useState<DetailTab>('overview')
   const [visibleCount, setVisibleCount] = useState(NEWS_PAGE_SIZE)
@@ -118,9 +135,13 @@ export default function StockDetailPage() {
   useEffect(() => { fetchNews(ticker) }, [ticker, fetchNews])
   useEffect(() => { checkWatchlist() }, [checkWatchlist])
   useEffect(() => {
-    setFilteredNews(filter === 'ALL' ? news : news.filter(n => n.sentimentLabel === filter))
+    const rangeStart = dateRangeStart(dateRange)
+    const result = news
+      .filter(n => filter === 'ALL' || n.sentimentLabel === filter)
+      .filter(n => dateRange === 'ALL' || new Date(n.publishedAt).getTime() >= rangeStart)
+    setFilteredNews(result)
     setVisibleCount(NEWS_PAGE_SIZE)
-  }, [filter, news])
+  }, [filter, dateRange, news])
 
   const stats = {
     total:    news.length,
@@ -425,12 +446,38 @@ export default function StockDetailPage() {
           <div className="space-y-3">
             {/* 필터 */}
             {!loading && news.length > 0 && (
-              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-                <div style={{ ...CARD, padding: '6px 8px', display: 'inline-flex', gap: '2px', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
-                  <TabBtn active={filter === 'ALL'}      onClick={() => setFilter('ALL')}>전체 ({stats.total})</TabBtn>
-                  <TabBtn active={filter === 'POSITIVE'} onClick={() => setFilter('POSITIVE')} color="#22c55e">긍정 ({stats.positive})</TabBtn>
-                  <TabBtn active={filter === 'NEGATIVE'} onClick={() => setFilter('NEGATIVE')} color="#f43f5e">부정 ({stats.negative})</TabBtn>
-                  <TabBtn active={filter === 'NEUTRAL'}  onClick={() => setFilter('NEUTRAL')}  color="#8b8fa8">중립 ({stats.neutral})</TabBtn>
+              <div style={{ ...CARD, padding: '10px 14px' }} className="space-y-2.5">
+                {/* 감성 필터 */}
+                <div className="overflow-x-auto -mx-2 px-2">
+                  <div style={{ display: 'inline-flex', gap: '2px', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
+                    <TabBtn active={filter === 'ALL'}      onClick={() => setFilter('ALL')}>전체 ({stats.total})</TabBtn>
+                    <TabBtn active={filter === 'POSITIVE'} onClick={() => setFilter('POSITIVE')} color="#22c55e">긍정 ({stats.positive})</TabBtn>
+                    <TabBtn active={filter === 'NEGATIVE'} onClick={() => setFilter('NEGATIVE')} color="#f43f5e">부정 ({stats.negative})</TabBtn>
+                    <TabBtn active={filter === 'NEUTRAL'}  onClick={() => setFilter('NEUTRAL')}  color="#8b8fa8">중립 ({stats.neutral})</TabBtn>
+                  </div>
+                </div>
+                {/* 날짜 필터 */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold shrink-0" style={{ color: '#c4c0d8' }}>기간</span>
+                  {DATE_RANGE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDateRange(opt.value)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        background: dateRange === opt.value ? '#6366f1' : '#f3f1fa',
+                        color:      dateRange === opt.value ? '#fff' : '#9e9ab8',
+                        border:     `1px solid ${dateRange === opt.value ? '#6366f1' : 'transparent'}`,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                  {(filter !== 'ALL' || dateRange !== 'ALL') && filteredNews.length !== news.length && (
+                    <span className="text-xs ml-1" style={{ color: '#c4c0d8' }}>
+                      {filteredNews.length}건 표시
+                    </span>
+                  )}
                 </div>
               </div>
             )}
