@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { watchlistApi, newsApi } from '@/lib/api'
-import type { News } from '@/types'
+import { watchlistApi, newsApi, sentimentApi, alertApi, tradingApi } from '@/lib/api'
+import type { News, SentimentWeeklySummary, TradingSignal } from '@/types'
 import { useAuth } from '@/context/AuthContext'
 import SentimentGauge from '@/components/SentimentGauge'
 
@@ -41,6 +41,20 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}일 전`
 }
 
+// ── 신호 유틸 ─────────────────────────────────────────────────
+function signalStyle(action: string) {
+  if (action === 'BUY')  return { color: '#16a34a', bg: '#f0fdf4', border: 'rgba(22,163,74,0.25)', label: '매수' }
+  if (action === 'SELL') return { color: '#dc2626', bg: '#fef2f2', border: 'rgba(220,38,38,0.25)', label: '매도' }
+  return { color: '#d97706', bg: '#fffbeb', border: 'rgba(217,119,6,0.25)', label: '보유' }
+}
+
+// ── 오늘 뉴스 수 계산 ──────────────────────────────────────────
+function countTodayNews(news: News[]): number {
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  return news.filter(n => new Date(n.publishedAt) >= todayStart).length
+}
+
 // ── 종목별 집계 유틸 ───────────────────────────────────────────
 interface TickerStats {
   dominant: string
@@ -50,6 +64,7 @@ interface TickerStats {
   negative: number
   neutral: number
   total: number
+  todayCount: number
   latestNews: News | null
 }
 
@@ -67,7 +82,7 @@ function calcStats(news: News[]): TickerStats {
   const latestNews = news.length > 0
     ? news.reduce((a, b) => new Date(a.publishedAt) > new Date(b.publishedAt) ? a : b)
     : null
-  return { dominant, avgScore, scoreBar, positive, negative, neutral, total, latestNews }
+  return { dominant, avgScore, scoreBar, positive, negative, neutral, total, todayCount: countTodayNews(news), latestNews }
 }
 
 // ── 관심 종목 카드 ─────────────────────────────────────────────
@@ -75,12 +90,21 @@ interface WatchCardProps {
   ticker: string
   news: News[]
   newsLoading: boolean
+  signal: TradingSignal | null
+  weekly: SentimentWeeklySummary | null
+  alertCount: number
   onNavigate: (ticker: string) => void
   onRemove: (ticker: string) => void
 }
 
-function WatchCard({ ticker, news, newsLoading, onNavigate, onRemove }: WatchCardProps) {
+function WatchCard({ ticker, news, newsLoading, signal, weekly, alertCount, onNavigate, onRemove }: WatchCardProps) {
   const stats = calcStats(news)
+  const sig = signal ? signalStyle(signal.signal) : null
+
+  // 주간 점수 변화
+  const scoreChange = weekly?.change?.scoreChange ?? null
+  const hasChange = scoreChange !== null && !isNaN(scoreChange)
+  const changePositive = hasChange && scoreChange! > 0
 
   return (
     <div
@@ -97,11 +121,13 @@ function WatchCard({ ticker, news, newsLoading, onNavigate, onRemove }: WatchCar
       {/* 상단 액센트 바 */}
       <div style={{
         height: 3,
-        background: `linear-gradient(to right, ${sentimentColor(stats.dominant)}, ${sentimentColor(stats.dominant)}60)`,
+        background: sig
+          ? `linear-gradient(to right, ${sig.color}, ${sig.color}60)`
+          : `linear-gradient(to right, ${sentimentColor(stats.dominant)}, ${sentimentColor(stats.dominant)}60)`,
       }} />
 
       <div className="p-4">
-        {/* 헤더 행: 티커 + 감성 배지 + 삭제 */}
+        {/* 헤더 행: 티커 + 감성 배지 + 알림 + 삭제 */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 min-w-0">
             {/* 아바타 */}
@@ -124,18 +150,60 @@ function WatchCard({ ticker, news, newsLoading, onNavigate, onRemove }: WatchCar
             </div>
           </div>
 
-          {/* 삭제 버튼 */}
-          <button
-            onClick={e => { e.stopPropagation(); onRemove(ticker) }}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg shrink-0"
-            style={{ color: '#c4c0d8', background: '#f8f7fd' }}
-            title="관심 종목 삭제"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          {/* 알림 배지 + 삭제 */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {alertCount > 0 && (
+              <span
+                className="flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full"
+                style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}
+                title={`미읽은 알림 ${alertCount}건`}
+              >
+                🔔{alertCount > 9 ? '9+' : alertCount}
+              </span>
+            )}
+            <button
+              onClick={e => { e.stopPropagation(); onRemove(ticker) }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg"
+              style={{ color: '#c4c0d8', background: '#f8f7fd' }}
+              title="관심 종목 삭제"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {/* 신호 + 주간 변화 행 */}
+        {!newsLoading && (sig || hasChange) && (
+          <div className="flex items-center gap-2 mb-3">
+            {sig && (
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-lg"
+                style={{ background: sig.bg, color: sig.color, border: `1px solid ${sig.border}` }}
+              >
+                {sig.label} {signal?.combinedScore != null ? `${Math.round(signal.combinedScore)}점` : ''}
+              </span>
+            )}
+            {hasChange && (
+              <span
+                className="text-xs font-semibold flex items-center gap-0.5"
+                style={{ color: changePositive ? '#16a34a' : scoreChange! < 0 ? '#dc2626' : '#8b8fa8' }}
+              >
+                {changePositive ? '▲' : scoreChange! < 0 ? '▼' : '−'}
+                {Math.abs(scoreChange!).toFixed(2)} <span style={{ color: '#c4c0d8', fontWeight: 400 }}>주간</span>
+              </span>
+            )}
+            {stats.todayCount > 0 && (
+              <span
+                className="text-xs font-medium ml-auto px-1.5 py-0.5 rounded-md"
+                style={{ background: '#f0eefb', color: '#8b7fd4' }}
+              >
+                오늘 {stats.todayCount}건
+              </span>
+            )}
+          </div>
+        )}
 
         {/* 로딩 스켈레톤 */}
         {newsLoading ? (
@@ -236,6 +304,9 @@ export default function WatchlistPage() {
   const [watchlist, setWatchlist]   = useState<string[]>([])
   const [newsMap, setNewsMap]       = useState<Record<string, News[]>>({})
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({})
+  const [signalMap, setSignalMap]   = useState<Record<string, TradingSignal | null>>({})
+  const [weeklyMap, setWeeklyMap]   = useState<Record<string, SentimentWeeklySummary | null>>({})
+  const [alertCountMap, setAlertCountMap] = useState<Record<string, number>>({})
   const [pageLoading, setPageLoading] = useState(true)
   const [error, setError]           = useState<string | null>(null)
   const [adding, setAdding]         = useState(false)
@@ -270,6 +341,28 @@ export default function WatchlistPage() {
     })
   }, [watchlist])  // newsMap 제외: 무한루프 방지
 
+  // ── 종목별 신호 / 주간 요약 / 알림 로드 ──────────────────
+  useEffect(() => {
+    watchlist.forEach(ticker => {
+      // 매매 신호
+      if (signalMap[ticker] === undefined) {
+        tradingApi.getSignal(ticker)
+          .then(sig => setSignalMap(prev => ({ ...prev, [ticker]: sig })))
+          .catch(() => setSignalMap(prev => ({ ...prev, [ticker]: null })))
+      }
+      // 주간 감성 요약
+      if (weeklyMap[ticker] === undefined) {
+        sentimentApi.getWeeklySummary(ticker)
+          .then(w => setWeeklyMap(prev => ({ ...prev, [ticker]: w })))
+          .catch(() => setWeeklyMap(prev => ({ ...prev, [ticker]: null })))
+      }
+      // 미읽은 알림 수
+      alertApi.getAlerts(ticker, true)
+        .then(alerts => setAlertCountMap(prev => ({ ...prev, [ticker]: alerts.length })))
+        .catch(() => setAlertCountMap(prev => ({ ...prev, [ticker]: 0 })))
+    })
+  }, [watchlist])  // signalMap/weeklyMap 제외: 무한루프 방지
+
   // ── 추가 ─────────────────────────────────────────────────
   const handleAdd = async (ticker: string) => {
     if (watchlist.includes(ticker)) {
@@ -295,6 +388,9 @@ export default function WatchlistPage() {
       await watchlistApi.removeTicker(ticker)
       setWatchlist(prev => prev.filter(t => t !== ticker))
       setNewsMap(prev => { const n = { ...prev }; delete n[ticker]; return n })
+      setSignalMap(prev => { const n = { ...prev }; delete n[ticker]; return n })
+      setWeeklyMap(prev => { const n = { ...prev }; delete n[ticker]; return n })
+      setAlertCountMap(prev => { const n = { ...prev }; delete n[ticker]; return n })
     } catch { /* silent */ }
   }
 
@@ -304,6 +400,9 @@ export default function WatchlistPage() {
   const totalNeg = allNews.filter(n => n.sentimentLabel === 'NEGATIVE').length
   const totalNeu = allNews.filter(n => n.sentimentLabel === 'NEUTRAL').length
   const overallSentiment = totalPos > totalNeg ? 'POSITIVE' : totalNeg > totalPos ? 'NEGATIVE' : 'NEUTRAL'
+
+  // ── 전체 미읽은 알림 ──────────────────────────────────────
+  const totalUnreadAlerts = Object.values(alertCountMap).reduce((a, b) => a + b, 0)
 
   // ── 미로그인 ──────────────────────────────────────────────
   if (!authLoading && !isAuthenticated) {
@@ -351,15 +450,27 @@ export default function WatchlistPage() {
               </span>
             )}
           </div>
-          {/* 전체 감성 요약 배지 */}
-          {allNews.length > 0 && (
-            <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: sentimentBg(overallSentiment), color: sentimentColor(overallSentiment) }}
-            >
-              {sentimentLabel(overallSentiment)} 우세
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {/* 전체 알림 배지 */}
+            {totalUnreadAlerts > 0 && (
+              <button
+                onClick={() => router.push('/alerts')}
+                className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-all"
+                style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}
+              >
+                🔔 알림 {totalUnreadAlerts > 9 ? '9+' : totalUnreadAlerts}건
+              </button>
+            )}
+            {/* 전체 감성 요약 배지 */}
+            {allNews.length > 0 && (
+              <span
+                className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                style={{ background: sentimentBg(overallSentiment), color: sentimentColor(overallSentiment) }}
+              >
+                {sentimentLabel(overallSentiment)} 우세
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -377,7 +488,7 @@ export default function WatchlistPage() {
         {(pageLoading || authLoading) ? (
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-2xl" style={{ height: 180, background: '#f3f1fa' }} />
+              <div key={i} className="animate-pulse rounded-2xl" style={{ height: 200, background: '#f3f1fa' }} />
             ))}
           </div>
         ) : error ? (
@@ -461,6 +572,9 @@ export default function WatchlistPage() {
                   ticker={ticker}
                   news={newsMap[ticker] ?? []}
                   newsLoading={loadingMap[ticker] ?? true}
+                  signal={signalMap[ticker] ?? null}
+                  weekly={weeklyMap[ticker] ?? null}
+                  alertCount={alertCountMap[ticker] ?? 0}
                   onNavigate={t => router.push(`/stock/${t}`)}
                   onRemove={handleRemove}
                 />
