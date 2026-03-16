@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { watchlistApi, newsApi } from '@/lib/api'
 import type { News } from '@/types'
 import { useAuth } from '@/context/AuthContext'
+import SentimentGauge from '@/components/SentimentGauge'
 
 // ── 상수 ──────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
@@ -147,23 +148,14 @@ function WatchCard({ ticker, news, newsLoading, onNavigate, onRemove }: WatchCar
           <p className="text-xs" style={{ color: '#c4c0d8' }}>최근 뉴스 없음</p>
         ) : (
           <>
-            {/* 감성 점수 바 */}
+            {/* 감성 점수 게이지 */}
             <div className="mb-3">
-              <div className="flex justify-between text-xs mb-1" style={{ color: '#9e9ab8' }}>
-                <span>감성 점수</span>
-                <span style={{ color: sentimentColor(stats.dominant), fontWeight: 600 }}>
-                  {stats.avgScore > 0 ? '+' : ''}{stats.avgScore.toFixed(2)}
-                </span>
-              </div>
-              <div style={{ height: 4, background: '#f3f1fa', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${stats.scoreBar}%`,
-                  background: sentimentColor(stats.dominant),
-                  borderRadius: 4,
-                  transition: 'width 0.6s ease',
-                }} />
-              </div>
+              <SentimentGauge
+                score={stats.avgScore}
+                newsCount={stats.total}
+                size="sm"
+                showTooltip={true}
+              />
             </div>
 
             {/* 뉴스 분포 */}

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { newsApi } from '@/lib/api'
 import type { News } from '@/types'
+import SentimentGauge from '@/components/SentimentGauge'
 
 // ── 상수 ─────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
@@ -99,15 +100,18 @@ function NewsRow({ news, onTickerClick }: { news: News; onTickerClick: (t: strin
             {news.titleKo || news.title}
           </p>
 
-          {/* 감성 점수 인라인 */}
-          <div className="flex items-center gap-2 mt-1.5">
-            <div style={{
-              width: 40, height: 3, borderRadius: 3,
-              background: `linear-gradient(to right, ${sentimentColor(news.sentimentLabel)}, ${sentimentColor(news.sentimentLabel)}40)`,
-            }} />
-            <span className="text-xs font-semibold" style={{ color: sentimentColor(news.sentimentLabel) }}>
-              {news.sentimentScore > 0 ? '+' : ''}{news.sentimentScore.toFixed(2)}
-            </span>
+          {/* 감성 게이지 */}
+          <div className="mt-1.5">
+            <SentimentGauge
+              score={news.sentimentScore}
+              newsCount={undefined}
+              size="xs"
+              showNewsCount={false}
+              showTooltip={false}
+            />
+          </div>
+          {/* 신뢰도 + 접기 버튼 */}
+          <div className="flex items-center gap-2 mt-1">
             {news.sentimentConfidence != null && (
               <span className="text-xs" style={{ color: '#c4c0d8' }}>
                 신뢰도 {(news.sentimentConfidence * 100).toFixed(0)}%

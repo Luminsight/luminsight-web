@@ -6,6 +6,7 @@ import type { News, Alert } from '@/types'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 import OnboardingFlow, { isOnboardingDone } from '@/components/OnboardingFlow'
+import SentimentGauge from '@/components/SentimentGauge'
 
 // ── 상수 ───────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
@@ -119,27 +120,15 @@ function WatchlistCard({ ticker, news, onClick, onRemove }: WatchlistCardProps) 
         <span>{sentimentLabel(dominant)}</span>
       </div>
 
-      {/* 점수 바 */}
-      <div className="mb-1">
-        <div className="flex justify-between text-xs mb-0.5" style={{ color: '#9e9ab8' }}>
-          <span>감성</span>
-          <span style={{ color: sentimentColor(dominant), fontWeight: 600 }}>{score}</span>
-        </div>
-        <div style={{ height: 4, background: '#f3f1fa', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%',
-            width: `${score}%`,
-            background: sentimentColor(dominant),
-            borderRadius: 4,
-            transition: 'width 0.6s ease',
-          }} />
-        </div>
+      {/* 감성 게이지 */}
+      <div className="mt-1">
+        <SentimentGauge
+          score={avgScore}
+          newsCount={total}
+          size="xs"
+          showTooltip={false}
+        />
       </div>
-
-      {/* 뉴스 수 */}
-      <p className="text-xs mt-2" style={{ color: '#c4c0d8' }}>
-        뉴스 {total}건
-      </p>
     </div>
   )
 }

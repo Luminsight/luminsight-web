@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { sentimentApi } from '@/lib/api'
 import type { SentimentTimeSeries } from '@/types'
+import { scoreToLabel, scoreToColor } from '@/components/SentimentGauge'
 
 interface Props { ticker: string; hours: number }
 
@@ -15,7 +16,7 @@ const ACCENT = '#8b7fd4'
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   const val = payload[0].value as number
-  const color = val > 0 ? '#22c55e' : val < 0 ? '#f43f5e' : '#8b8fa8'
+  const color = scoreToColor(val)
   return (
     <div style={{
       background: '#ffffff',
@@ -27,8 +28,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     }}>
       <p style={{ color: '#9e9ab8', marginBottom: 4 }}>{label}</p>
       <p style={{ fontWeight: 700, color }}>
-        {val > 0 ? '+' : ''}{val.toFixed(3)}
+        {val > 0 ? '+' : ''}{val.toFixed(2)}
       </p>
+      <p style={{ color, fontSize: 11, marginTop: 2 }}>{scoreToLabel(val)}</p>
     </div>
   )
 }
@@ -87,16 +89,17 @@ export default function SentimentChart({ ticker, hours }: Props) {
         </div>
         <div className="flex gap-3">
           {[
-            { label: '평균', val: avg.toFixed(3), color: ACCENT },
-            { label: '최고', val: max.toFixed(3), color: '#22c55e' },
-            { label: '최저', val: min.toFixed(3), color: '#f43f5e' },
-            { label: '추세', val: (trend > 0 ? '+' : '') + trend.toFixed(3), color: trendColor },
+            { label: '평균', val: avg.toFixed(2), sublabel: scoreToLabel(avg), color: scoreToColor(avg) },
+            { label: '최고', val: max.toFixed(2), sublabel: scoreToLabel(max), color: '#22c55e' },
+            { label: '최저', val: min.toFixed(2), sublabel: scoreToLabel(min), color: '#f43f5e' },
+            { label: '추세', val: (trend > 0 ? '+' : '') + trend.toFixed(2), sublabel: trend > 0 ? '상승' : trend < 0 ? '하락' : '보합', color: trendColor },
           ].map(s => (
             <div key={s.label} style={{
               background: '#f8f7fd', borderRadius: 10, padding: '6px 10px', textAlign: 'center',
             }}>
               <p style={{ fontSize: 10, color: '#9e9ab8' }}>{s.label}</p>
               <p style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.val}</p>
+              <p style={{ fontSize: 9, color: s.color, opacity: 0.8, marginTop: 1 }}>{s.sublabel}</p>
             </div>
           ))}
         </div>
