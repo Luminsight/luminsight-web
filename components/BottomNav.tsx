@@ -1,7 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { alertApi } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
 
 type NavItem = {
   href: string
@@ -101,6 +104,16 @@ const navItems: NavItem[] = [
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const { isAuthenticated } = useAuth()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // 미읽음 알림 개수 — 로그인 상태일 때만 + 페이지 전환 시 갱신
+  useEffect(() => {
+    if (!isAuthenticated) { setUnreadCount(0); return }
+    alertApi.getUnreadCount()
+      .then(setUnreadCount)
+      .catch(() => setUnreadCount(0))
+  }, [isAuthenticated, pathname])
 
   return (
     <nav
@@ -117,15 +130,32 @@ export default function BottomNav() {
         const isActive = href === '/'
           ? pathname === '/'
           : pathname === href || pathname.startsWith(href + '/')
+        const isAlerts = href === '/alerts'
+        const badgeCount = isAlerts ? unreadCount : 0
         return (
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all"
+            className="relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-all"
             style={{ color: isActive ? '#8b7fd4' : '#b0accc' }}
           >
-            <span className="transition-transform" style={{ transform: isActive ? 'scale(1.1)' : 'scale(1)' }}>
+            <span className="relative transition-transform" style={{ transform: isActive ? 'scale(1.1)' : 'scale(1)' }}>
               {isActive ? activeIcon : icon}
+              {badgeCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1.5 flex items-center justify-center rounded-full text-white font-bold"
+                  style={{
+                    background: '#ef4444',
+                    minWidth: 15,
+                    height: 15,
+                    fontSize: 9,
+                    padding: '0 3px',
+                    lineHeight: 1,
+                  }}
+                >
+                  {badgeCount > 9 ? '9+' : badgeCount}
+                </span>
+              )}
             </span>
             <span className="text-xs font-medium leading-none"
               style={{ color: isActive ? '#8b7fd4' : '#b0accc' }}>

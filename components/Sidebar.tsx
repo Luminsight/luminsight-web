@@ -157,11 +157,11 @@ export default function Sidebar() {
   const { user, isAuthenticated, isLoading, login, logout } = useAuth()
 
   useEffect(() => {
-    if (!isAuthenticated) return
-    alertApi.getAlerts(undefined, true)
-      .then(alerts => setUnreadCount(alerts.length))
+    if (!isAuthenticated) { setUnreadCount(0); return }
+    alertApi.getUnreadCount()
+      .then(setUnreadCount)
       .catch(() => setUnreadCount(0))
-  }, [isAuthenticated])
+  }, [isAuthenticated, pathname])
 
   // 비로그인 시 로그인 페이지로 리다이렉트
   // 단, 공개 경로(랜딩 페이지, 종목 상세)는 제외 — ConditionalLayout에서 사이드바 자체를 숨김

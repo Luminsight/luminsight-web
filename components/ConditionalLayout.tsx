@@ -1,10 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import Sidebar from './Sidebar'
+import Sidebar, { MobileAlertBell } from './Sidebar'
 import BottomNav from './BottomNav'
 import DisclaimerModal from './DisclaimerModal'
 import { useAuth } from '@/context/AuthContext'
+import { alertApi } from '@/lib/api'
 
 // 사이드바/푸터를 표시하지 않을 경로
 const AUTH_PATHS = ['/login', '/auth', '/terms', '/privacy']
@@ -15,6 +17,14 @@ const PUBLIC_PATHS = ['/stock/']
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { isAuthenticated, isLoading } = useAuth()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!isAuthenticated) { setUnreadCount(0); return }
+    alertApi.getUnreadCount()
+      .then(setUnreadCount)
+      .catch(() => setUnreadCount(0))
+  }, [isAuthenticated, pathname])
 
   const isAuthPage = AUTH_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
 
@@ -34,6 +44,10 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
   return (
     <>
       <DisclaimerModal />
+      {/* 모바일 상단 알림 벨 (비로그인이거나 alerts 페이지에서는 숨김) */}
+      {isAuthenticated && pathname !== '/alerts' && (
+        <MobileAlertBell unreadCount={unreadCount} />
+      )}
       <div className="flex min-h-screen">
         <Sidebar />
         {/* 모바일: 하단 네비 + 안전 영역 패딩 / 데스크탑: 사이드바 마진 */}
