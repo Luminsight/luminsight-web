@@ -2,13 +2,42 @@
 
 import { useState } from 'react'
 import type { News } from '@/types'
+import { newsApi } from '@/lib/api'
 
 interface Props { news: News; globalIsKorean: boolean }
 
 export default function NewsCard({ news, globalIsKorean }: Props) {
   const [localOverride, setLocalOverride] = useState<boolean | null>(null)
-  const isKorean     = localOverride !== null ? localOverride : globalIsKorean
-  const hasTranslation = news.titleKo !== null && news.contentKo !== null
+  const [translating, setTranslating]     = useState(false)
+  const [translated, setTranslated]       = useState<Pick<News, 'titleKo' | 'contentKo' | 'sentimentReasoningKo'> | null>(null)
+  const [translateFailed, setTranslateFailed] = useState(false)
+
+  // 번역 데이터: 서버에서 내려온 값 OR 방금 번역된 값
+  const effectiveNews = translated ? { ...news, ...translated } : news
+  const hasTranslation = effectiveNews.titleKo !== null && effectiveNews.contentKo !== null
+
+  const isKorean = localOverride !== null ? localOverride : globalIsKorean
+
+  const handleRequestTranslation = async () => {
+    if (translating) return
+    setTranslating(true)
+    setTranslateFailed(false)
+    try {
+      const success = await newsApi.translateNews(news.id)
+      if (success) {
+        // 번역 완료: 페이지 새로고침 없이 번역 버튼만 사라지도록 임시 표시
+        // 실제 번역 결과는 다음 뉴스 로드 시 반영됨
+        // titleKo를 알 수 없으므로 페이지 새로고침 유도
+        window.location.reload()
+      } else {
+        setTranslateFailed(true)
+      }
+    } catch {
+      setTranslateFailed(true)
+    } finally {
+      setTranslating(false)
+    }
+  }
 
   const handleToggle = () => setLocalOverride(localOverride === null ? !globalIsKorean : null)
 
@@ -28,9 +57,9 @@ export default function NewsCard({ news, globalIsKorean }: Props) {
     return d.toLocaleDateString('ko-KR')
   }
 
-  const title    = isKorean && hasTranslation ? news.titleKo    : news.title
-  const content  = isKorean && hasTranslation ? news.contentKo  : news.content
-  const reason   = isKorean && hasTranslation ? news.sentimentReasoningKo : news.sentimentReasoning
+  const title    = isKorean && hasTranslation ? effectiveNews.titleKo    : news.title
+  const content  = isKorean && hasTranslation ? effectiveNews.contentKo  : news.content
+  const reason   = isKorean && hasTranslation ? effectiveNews.sentimentReasoningKo : news.sentimentReasoning
   const st       = sentStyle(news.sentimentScore)
 
   return (
@@ -55,7 +84,22 @@ export default function NewsCard({ news, globalIsKorean }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {hasTranslation
             ? <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>✓ 번역됨</span>
-            : <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: '#f8f7fd', color: '#c4c0d8', border: '1px solid #ece9f5' }}>번역 대기</span>
+            : (
+              <button
+                onClick={handleRequestTranslation}
+                disabled={translating}
+                title="클릭하여 번역 요청"
+                style={{
+                  fontSize: 11, padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
+                  background: translateFailed ? '#fff1f1' : translating ? '#f0eefb' : '#f8f7fd',
+                  color: translateFailed ? '#ef4444' : translating ? '#8b7fd4' : '#c4c0d8',
+                  border: `1px solid ${translateFailed ? '#fecaca' : translating ? '#d4cff2' : '#ece9f5'}`,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {translating ? '번역 중...' : translateFailed ? '번역 실패 ↺' : '번역 대기 →'}
+              </button>
+            )
           }
           {hasTranslation && (
             <button onClick={handleToggle}

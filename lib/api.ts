@@ -175,6 +175,16 @@ export const newsApi = {
     })
   },
 
+  // 단건 뉴스 즉시 번역 요청
+  translateNews: async (newsId: number): Promise<boolean> => {
+    try {
+      const response = await api.post(`/translation/translate/${newsId}`)
+      return response.data?.success === true
+    } catch {
+      return false
+    }
+  },
+
   // 캐시 강제 갱신 (수동 새로고침용)
   invalidateCache: (ticker: string) => {
     cache.invalidate(`news:${ticker}`)
