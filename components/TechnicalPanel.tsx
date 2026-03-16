@@ -441,6 +441,61 @@ function StatusBadge({ color, children }: { color: string; children: React.React
   )
 }
 
+// ── 신호 품질 헬퍼 ────────────────────────────────────────────
+
+// 신뢰도 + 방향에 따른 상태 기반 레이블 (행동 지시 → 현황 묘사)
+function signalLabel(op: 'BUY' | 'HOLD' | 'SELL', conf: number): string {
+  if (op === 'BUY') {
+    if (conf >= 0.75) return '강한 긍정 신호'
+    if (conf >= 0.60) return '긍정적 신호'
+    return '약한 긍정 신호'
+  }
+  if (op === 'SELL') {
+    if (conf >= 0.75) return '강한 부정 신호'
+    if (conf >= 0.60) return '부정적 신호'
+    return '약한 부정 신호'
+  }
+  return '중립 관망'
+}
+
+// 신뢰도가 낮은 이유 한 줄 설명
+function confContext(conf: number, bd: SignalBreakdown | null | undefined): string | null {
+  if (!bd || conf >= 0.75) return null
+  const techAbs = Math.abs(bd.technicalContrib)
+  const sentAbs = Math.abs(bd.sentimentContrib)
+  const fundAbs = Math.abs(bd.fundamentalContrib)
+  const total   = techAbs + sentAbs + fundAbs + Math.abs(bd.marketContrib)
+  const techPct = total > 0 ? techAbs / total : 0
+  if (conf < 0.60 && techPct < 0.15)
+    return '기술적 신호 미약 — 진입 타이밍 별도 확인 권장'
+  if (conf < 0.60)
+    return '신호 강도 약함 — 추가 지표 확인 권장'
+  if (techPct < 0.20)
+    return '차트보다 감성·펀더멘털 주도 — 기술적 확인 후 진입 검토'
+  return null
+}
+
+// 기술적 진입 조건 충족 여부 판단
+type TechEntryResult = { ok: boolean; text: string; color: string } | null
+function techEntryCheck(
+  op: 'BUY' | 'HOLD' | 'SELL',
+  macdHistogram: number | null,
+  aboveSma20: boolean | null,
+  goldenCross: boolean | null,
+): TechEntryResult {
+  if (op === 'HOLD' || macdHistogram === null || aboveSma20 === null) return null
+  const macdBull    = macdHistogram > 0
+  const bullCount   = [macdBull, aboveSma20, goldenCross].filter(Boolean).length
+  if (op === 'BUY') {
+    if (bullCount >= 2 && macdBull) return { ok: true,  text: '기술적 진입 조건 충족',      color: '#16a34a' }
+    if (bullCount >= 1)             return { ok: false, text: '기술적 진입 조건 부분 충족', color: '#f97316' }
+    return                                 { ok: false, text: '기술적 진입 조건 미충족',     color: '#ef4444' }
+  }
+  // SELL
+  if (!macdBull && !aboveSma20) return { ok: true,  text: '기술적 매도 조건 충족',      color: '#ef4444' }
+  return                               { ok: false, text: '기술적 매도 조건 부분 충족', color: '#f97316' }
+}
+
 // ── 메인 컴포넌트 ─────────────────────────────────────────────
 
 export default function TechnicalPanel({ ticker }: Props) {
@@ -676,11 +731,23 @@ export default function TechnicalPanel({ ticker }: Props) {
           {tradingSignal && (() => {
             const op = tradingSignal.signal
             const cfg = {
-              BUY:  { bg: '#dcfce7', border: '#86efac', color: '#16a34a', label: '매수 (BUY)',  icon: '📈' },
-              HOLD: { bg: '#fef9c3', border: '#fde047', color: '#ca8a04', label: '보유 (HOLD)', icon: '⏸️' },
-              SELL: { bg: '#fee2e2', border: '#fca5a5', color: '#dc2626', label: '매도 (SELL)', icon: '📉' },
+              BUY:  { bg: '#dcfce7', border: '#86efac', color: '#16a34a', icon: '📈' },
+              HOLD: { bg: '#fef9c3', border: '#fde047', color: '#ca8a04', icon: '⏸️' },
+              SELL: { bg: '#fee2e2', border: '#fca5a5', color: '#dc2626', icon: '📉' },
             }[op]
-            const confPct = Math.round((tradingSignal.confidence ?? 0) * 100)
+            const conf    = tradingSignal.confidence ?? 0
+            const confPct = Math.round(conf * 100)
+            const label   = signalLabel(op, conf)
+            const ctx     = confContext(conf, tradingSignal.breakdown)
+
+            // 기술적 진입 조건 계산
+            const lastMacd  = techData?.macd?.at(-1)
+            const lastMa    = techData?.movingAverages?.at(-1)
+            const lastClose = techData?.priceData?.at(-1)?.close ?? null
+            const aboveSma20   = lastClose !== null && lastMa?.sma20 != null ? lastClose > lastMa.sma20 : null
+            const goldenCross  = lastMa?.sma20 != null && lastMa?.sma50 != null ? lastMa.sma20 > lastMa.sma50 : null
+            const techEntry = techEntryCheck(op, lastMacd?.histogram ?? null, aboveSma20, goldenCross)
+
             const signalDate = tradingSignal.date
               ? new Date(tradingSignal.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
               : null
@@ -691,17 +758,51 @@ export default function TechnicalPanel({ ticker }: Props) {
                 borderRadius: 14, padding: '12px 16px', marginBottom: 16,
               }}>
                 {/* 의견 배지 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 130 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 150 }}>
                   <span style={{ fontSize: 22 }}>{cfg.icon}</span>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: cfg.color, lineHeight: 1.1 }}>
-                      {cfg.label}
+                    {/* 상태 묘사 레이블 */}
+                    <div style={{ fontSize: 16, fontWeight: 900, color: cfg.color, lineHeight: 1.1 }}>
+                      {label}
                     </div>
-                    <div style={{ fontSize: 11, color: cfg.color, opacity: 0.8, marginTop: 1 }}>
-                      신뢰도 {confPct}%
+                    {/* BUY/SELL/HOLD 보조 뱃지 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 800, color: cfg.color,
+                        background: '#ffffff60', border: `1px solid ${cfg.color}55`,
+                        padding: '1px 7px', borderRadius: 5, letterSpacing: '0.5px',
+                      }}>
+                        {op}
+                      </span>
+                      <span style={{ fontSize: 10, color: cfg.color, opacity: 0.8 }}>
+                        신뢰도 {confPct}%
+                      </span>
                     </div>
+                    {/* 신뢰도 맥락 문구 */}
+                    {ctx && (
+                      <div style={{
+                        fontSize: 9, color: cfg.color, opacity: 0.75, marginTop: 3,
+                        lineHeight: 1.4, maxWidth: 180,
+                      }}>
+                        ⚠️ {ctx}
+                      </div>
+                    )}
+                    {/* 기술적 진입 조건 뱃지 */}
+                    {techEntry && (
+                      <div style={{ marginTop: 4 }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 700,
+                          color: techEntry.color,
+                          background: techEntry.color + '18',
+                          border: `1px solid ${techEntry.color}44`,
+                          padding: '1px 6px', borderRadius: 5,
+                        }}>
+                          {techEntry.ok ? '✓' : '○'} {techEntry.text}
+                        </span>
+                      </div>
+                    )}
                     {signalDate && (
-                      <div style={{ fontSize: 10, color: cfg.color, opacity: 0.6, marginTop: 2 }}>
+                      <div style={{ fontSize: 9, color: cfg.color, opacity: 0.5, marginTop: 3 }}>
                         📅 {signalDate} 종가 기준
                       </div>
                     )}

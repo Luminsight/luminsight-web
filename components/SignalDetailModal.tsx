@@ -20,9 +20,36 @@ const sentimentLabel = (label: string) =>
   label === 'POSITIVE' ? '긍정' : label === 'NEGATIVE' ? '부정' : '중립'
 
 const signalConfig = {
-  BUY:  { label: '매수',  bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', emoji: '🟢' },
-  SELL: { label: '매도',  bg: '#fef2f2', color: '#ef4444', border: '#fecaca', emoji: '🔴' },
-  HOLD: { label: '보유',  bg: '#f5f3ff', color: '#8b7fd4', border: '#ddd6fe', emoji: '⚪️' },
+  BUY:  { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', emoji: '🟢' },
+  SELL: { bg: '#fef2f2', color: '#ef4444', border: '#fecaca', emoji: '🔴' },
+  HOLD: { bg: '#f5f3ff', color: '#8b7fd4', border: '#ddd6fe', emoji: '⚪️' },
+}
+
+function signalLabel(op: 'BUY' | 'SELL' | 'HOLD', conf: number): string {
+  if (op === 'BUY') {
+    if (conf >= 0.75) return '강한 긍정 신호'
+    if (conf >= 0.60) return '긍정적 신호'
+    return '약한 긍정 신호'
+  }
+  if (op === 'SELL') {
+    if (conf >= 0.75) return '강한 부정 신호'
+    if (conf >= 0.60) return '부정적 신호'
+    return '약한 부정 신호'
+  }
+  return '중립 관망'
+}
+
+function confContext(conf: number, bd: ReturnType<typeof Object.create> | null | undefined): string | null {
+  if (!bd || conf >= 0.75) return null
+  const techAbs = Math.abs(bd.technicalContrib ?? 0)
+  const sentAbs = Math.abs(bd.sentimentContrib ?? 0)
+  const fundAbs = Math.abs(bd.fundamentalContrib ?? 0)
+  const total   = techAbs + sentAbs + fundAbs + Math.abs(bd.marketContrib ?? 0)
+  const techPct = total > 0 ? techAbs / total : 0
+  if (conf < 0.60 && techPct < 0.15) return '기술적 신호 미약 — 진입 타이밍 별도 확인 권장'
+  if (conf < 0.60) return '신호 강도 약함 — 추가 지표 확인 권장'
+  if (techPct < 0.20) return '차트보다 감성·펀더멘털 주도 — 기술적 확인 후 진입 검토'
+  return null
 }
 
 // ── 4축 기여도 바 ──────────────────────────────────────────────
@@ -143,8 +170,11 @@ function NewsCard({ news }: { news: ContributingNews }) {
 
 // ── 메인 모달 ──────────────────────────────────────────────────
 export default function SignalDetailModal({ signal, onClose, highlightAxis }: Props) {
-  const cfg = signalConfig[signal.signal] ?? signalConfig.HOLD
-  const bd = signal.breakdown
+  const cfg   = signalConfig[signal.signal] ?? signalConfig.HOLD
+  const bd    = signal.breakdown
+  const conf  = signal.confidence ?? 0
+  const label = signalLabel(signal.signal, conf)
+  const ctx   = confContext(conf, bd)
 
   return (
     <div
@@ -176,19 +206,34 @@ export default function SignalDetailModal({ signal, onClose, highlightAxis }: Pr
         <div className="px-6 py-4 space-y-6">
 
           {/* 신호 배지 + 신뢰도 */}
-          <div className="flex items-center gap-3">
-            <span className="px-4 py-2 rounded-xl text-sm font-bold"
-              style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
-              {cfg.label} 신호
-            </span>
-            <span className="text-sm" style={{ color: '#9e9ab8' }}>
-              신뢰도 {(signal.confidence * 100).toFixed(0)}%
-            </span>
-            {bd?.earningsRisk && (
-              <span className="px-2 py-1 rounded-lg text-xs font-medium"
-                style={{ background: '#fff7ed', color: '#f97316', border: '1px solid #fed7aa' }}>
-                ⚠️ 어닝 임박
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* 상태 묘사 레이블 */}
+              <span className="px-4 py-2 rounded-xl text-sm font-bold"
+                style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+                {label}
               </span>
+              {/* BUY/SELL/HOLD 보조 뱃지 */}
+              <span className="text-xs font-bold px-2 py-1 rounded-lg"
+                style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+                {signal.signal}
+              </span>
+              <span className="text-sm" style={{ color: '#9e9ab8' }}>
+                신뢰도 {(conf * 100).toFixed(0)}%
+              </span>
+              {bd?.earningsRisk && (
+                <span className="px-2 py-1 rounded-lg text-xs font-medium"
+                  style={{ background: '#fff7ed', color: '#f97316', border: '1px solid #fed7aa' }}>
+                  ⚠️ 어닝 임박
+                </span>
+              )}
+            </div>
+            {/* 신뢰도 맥락 문구 */}
+            {ctx && (
+              <p className="text-xs rounded-lg px-3 py-2"
+                style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                ⚠️ {ctx}
+              </p>
             )}
           </div>
 
